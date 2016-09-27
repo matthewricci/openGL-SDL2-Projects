@@ -63,7 +63,6 @@ int main(int argc, char *argv[])
 	GLuint star = LoadTexture("star.png");
 	Matrix projectionMatrix;
 	Matrix modelMatrix;
-	//Matrix modelMatrix2;
 	Matrix viewMatrix;
 
 	projectionMatrix.setOrthoProjection(-3.55, 3.55, -2.0f, 2.0f, -1.0f, 1.0f);
@@ -99,7 +98,7 @@ int main(int argc, char *argv[])
 		program.setProjectionMatrix(projectionMatrix);
 		program.setViewMatrix(viewMatrix);
 
-		//code for binding, drawing, and transforming toadLeft
+		//code for binding, drawing, and transforming star
 		glBindTexture(GL_TEXTURE_2D, star);
 		modelMatrix.identity();
 		modelMatrix.Translate(-1.5f, -0.5f, 0.0f);
@@ -108,7 +107,7 @@ int main(int argc, char *argv[])
 
 		program.setModelMatrix(modelMatrix);
 
-		//code for binding, drawing, and transforming toadRight
+		//code for binding, drawing, and transforming toadLeft
 		program.setModelMatrix(modelMatrix);  //needed to hand off modelMatrix to toadRight texture
 		modelMatrix.identity();				//resets modelMatrix to center for new transformations
 		glBindTexture(GL_TEXTURE_2D, toadLeft);
@@ -116,7 +115,7 @@ int main(int argc, char *argv[])
 		modelMatrix.identity();				//resets modelMatrix to center for new transformations
 		modelMatrix.Translate(1.5f, -0.5f, 0.0f);
 
-		//code for binding, drawing, and animating star
+		//code for binding, drawing, and animating toadRight
 		program.setModelMatrix(modelMatrix);
 		glBindTexture(GL_TEXTURE_2D, toadRight);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -125,38 +124,9 @@ int main(int argc, char *argv[])
 		modelMatrix.Rotate(ticks * 300 * (3.1415926 / 180.0));
 		program.setModelMatrix(modelMatrix);
 
-		////code for binding, drawing, and transforming toadLeft
-		//glBindTexture(GL_TEXTURE_2D, toadLeft);
-		//modelMatrix.identity();
-		//modelMatrix.Translate(1.5f, -0.5f, 0.0f);
-		//glDrawArrays(GL_TRIANGLES, 0, 6);
-
-		////program.setModelMatrix(modelMatrix);
-
-		////code for binding, drawing, and transforming toadRight
-		//program.setModelMatrix(modelMatrix);  //needed to hand off modelMatrix to toadRight texture
-		////program.setViewMatrix(viewMatrix);
-		//glBindTexture(GL_TEXTURE_2D, toadRight);
-		//modelMatrix2.identity();				//resets modelMatrix to center for new transformations
-		//modelMatrix.Translate(-1.5f, -0.5f, 0.0f);
-		//modelMatrix2.Scale(1.2f, 1.2f, 0.0f); //needed to be a bit bigger to make symmetrical
-		//glDrawArrays(GL_TRIANGLES, 0, 6);
-
-		////code for binding, drawing, and animating star
-		//program.setModelMatrix(modelMatrix);
-		//glBindTexture(GL_TEXTURE_2D, star);
-		//modelMatrix.identity();
-		//modelMatrix.Translate(0.0f, 1.2f, 0.0f);
-		//modelMatrix.Rotate(ticks * 300 * (3.1415926/180.0));
-		//glDrawArrays(GL_TRIANGLES, 0, 6);
-
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		
-		//float length = 0.0f;
-		//length += elapsed;
-		//modelMatrix.Translate(0.01f, 0.01f, 0.0f);
 
 		glDisableVertexAttribArray(program.positionAttribute);
 		glDisableVertexAttribArray(program.texCoordAttribute);
@@ -164,8 +134,6 @@ int main(int argc, char *argv[])
 		SDL_GL_SwapWindow(displayWindow);
 
 	}
-	glDisableVertexAttribArray(program.positionAttribute);
-	glDisableVertexAttribArray(program.texCoordAttribute);
 	SDL_Quit();
 	return 0;
 }
