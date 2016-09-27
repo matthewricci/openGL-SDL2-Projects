@@ -1,0 +1,37 @@
+﻿Build started 9/7/2016 9:40:01 PM.
+     1>Project "C:\Users\crush_000\Documents\CS3113\project_template\Windows\NYUCodebase\NYUCodebase\Class Template2.vcxproj" on node 2 (Build target(s)).
+     1>Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\crush_000\Documents\CS3113\project_template\Windows\NYUCodebase\NYUCodebase\Debug\Class Template2.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\crush_000\Documents\CS3113\project_template\Windows\NYUCodebase\NYUCodebase\Debug\Class Template2.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\crush_000\Documents\CS3113\project_template\Windows\NYUCodebase\NYUCodebase\Debug\Class Template2.lib" /MACHINE:X86 Debug\main.obj
+         Debug\Matrix.obj
+         Debug\ShaderProgram.obj
+     1>main.obj : error LNK2019: unresolved external symbol __imp__glClear@4 referenced in function _SDL_main
+     1>main.obj : error LNK2019: unresolved external symbol __imp__glewInit@0 referenced in function _SDL_main
+     1>main.obj : error LNK2019: unresolved external symbol _SDL_CreateWindow referenced in function _SDL_main
+     1>main.obj : error LNK2019: unresolved external symbol _SDL_GL_CreateContext referenced in function _SDL_main
+     1>main.obj : error LNK2019: unresolved external symbol _SDL_GL_MakeCurrent referenced in function _SDL_main
+     1>main.obj : error LNK2019: unresolved external symbol _SDL_GL_SwapWindow referenced in function _SDL_main
+     1>main.obj : error LNK2019: unresolved external symbol _SDL_PollEvent referenced in function _SDL_main
+     1>main.obj : error LNK2019: unresolved external symbol _SDL_Init referenced in function _SDL_main
+     1>main.obj : error LNK2019: unresolved external symbol _SDL_Quit referenced in function _SDL_main
+     1>ShaderProgram.obj : error LNK2001: unresolved external symbol __imp____glewAttachShader
+     1>ShaderProgram.obj : error LNK2001: unresolved external symbol __imp____glewCompileShader
+     1>ShaderProgram.obj : error LNK2001: unresolved external symbol __imp____glewCreateProgram
+     1>ShaderProgram.obj : error LNK2001: unresolved external symbol __imp____glewCreateShader
+     1>ShaderProgram.obj : error LNK2001: unresolved external symbol __imp____glewDeleteProgram
+     1>ShaderProgram.obj : error LNK2001: unresolved external symbol __imp____glewDeleteShader
+     1>ShaderProgram.obj : error LNK2001: unresolved external symbol __imp____glewGetAttribLocation
+     1>ShaderProgram.obj : error LNK2001: unresolved external symbol __imp____glewGetProgramiv
+     1>ShaderProgram.obj : error LNK2001: unresolved external symbol __imp____glewGetShaderInfoLog
+     1>ShaderProgram.obj : error LNK2001: unresolved external symbol __imp____glewGetShaderiv
+     1>ShaderProgram.obj : error LNK2001: unresolved external symbol __imp____glewGetUniformLocation
+     1>ShaderProgram.obj : error LNK2001: unresolved external symbol __imp____glewLinkProgram
+     1>ShaderProgram.obj : error LNK2001: unresolved external symbol __imp____glewShaderSource
+     1>ShaderProgram.obj : error LNK2001: unresolved external symbol __imp____glewUniformMatrix4fv
+     1>ShaderProgram.obj : error LNK2001: unresolved external symbol __imp____glewUseProgram
+     1>MSVCRTD.lib(crtexew.obj) : error LNK2019: unresolved external symbol _WinMain@16 referenced in function ___tmainCRTStartup
+     1>C:\Users\crush_000\Documents\CS3113\project_template\Windows\NYUCodebase\NYUCodebase\Debug\Class Template2.exe : fatal error LNK1120: 25 unresolved externals
+     1>Done Building Project "C:\Users\crush_000\Documents\CS3113\project_template\Windows\NYUCodebase\NYUCodebase\Class Template2.vcxproj" (Build target(s)) -- FAILED.
+
+Build FAILED.
+
+Time Elapsed 00:00:00.68
