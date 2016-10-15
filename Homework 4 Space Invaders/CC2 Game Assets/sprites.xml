@@ -1,0 +1,6 @@
+<TextureAtlas imagePath="sprites.png">
+	<SubTexture name="alien1.png" x="424" y="0" width="324" height="340"/>
+	<SubTexture name="laserBlue03.png" x="0" y="374" width="9" height="37"/>
+	<SubTexture name="laserRed03.png" x="0" y="413" width="9" height="37"/>
+	<SubTexture name="spaceship.pod_.1.blue_.png" x="0" y="0" width="422" height="372"/>
+</TextureAtlas>
