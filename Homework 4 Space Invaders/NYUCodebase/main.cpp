@@ -26,6 +26,48 @@ SDL_Window* displayWindow;
 enum GameState {START_SCREEN, LEVEL_ONE};
 int state;
 
+//class SheetSprite for mapping and storing sprites from a sheet
+class SheetSprite {
+public:
+	SheetSprite(unsigned int initTextureID, float initU, float initV, float initWidth, float initHeight, float initSize) :
+		textureID(initTextureID), u(initU), v(initV), width(initWidth), height(initHeight), size(initSize){}
+	void Draw(ShaderProgram *program){
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		
+		GLfloat texCoords[] = {
+			u, v + height,
+			u + width, v,
+			u, v,
+			u + width, v,
+			u, v + height,
+			u + width, v + height
+		};
+		float aspect = width / height;
+		float vertices[] = {
+			-0.5f * size * aspect, -0.5f * size,
+			0.5f * size * aspect, 0.5f * size,
+			-0.5f * size * aspect, 0.5f * size,
+			0.5f * size * aspect, 0.5f * size,
+			-0.5f * size * aspect, -0.5f * size,
+			0.5f * size * aspect, -0.5f * size };
+
+		glVertexAttribPointer(program->positionAttribute, 2, GL_FLOAT, false, 0, vertices);
+		glEnableVertexAttribArray(program->positionAttribute);
+
+		glVertexAttribPointer(program->texCoordAttribute, 2, GL_FLOAT, false, 0, texCoords);
+		glEnableVertexAttribArray(program->texCoordAttribute);
+
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+	}
+
+	float size;
+	unsigned int textureID;
+	float u;
+	float v;
+	float width;
+	float height;
+};
+
 //loads textures for building
 GLuint LoadTexture(const char *image_path){
 	SDL_Surface *testTexture = IMG_Load(image_path);
@@ -104,7 +146,7 @@ int main(int argc, char *argv[])
 	ShaderProgram program(RESOURCE_FOLDER"vertex_textured.glsl", RESOURCE_FOLDER"fragment_textured.glsl");
 	glUseProgram(program.programID);
 	GLuint background = LoadTexture("Space Background.png");
-	GLuint square = LoadTexture("sprites.png");
+	GLuint sprites = LoadTexture("sprites.png");
 	int font = LoadTexture("font.png");
 	Matrix projectionMatrix;
 	Matrix modelMatrix;
@@ -122,6 +164,10 @@ int main(int argc, char *argv[])
 	//start-screen text
 	std::string first_line = "~ Bootleg Invaders ~";
 	std::string second_line = "Press space to begin the adventure!";
+
+
+	//initializing textures from the spritesheet
+	SheetSprite blueShip(sprites, 0.0f, 0.0f, 422.0f/1024.0f, 372.0f/512.0f, 0.1f);
 
 
 	while (!done) {
@@ -183,6 +229,7 @@ int main(int argc, char *argv[])
 		}
 		else {
 			modelMatrix.identity();
+			blueShip.Draw(&program);
 		}
 
 
