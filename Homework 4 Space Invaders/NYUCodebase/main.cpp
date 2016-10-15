@@ -1,8 +1,7 @@
 /*
 NAME: Matthew Ricci
-CLASS: CS3113 Homework 3 - Pong Remake
-NOTES: Press spacebar to start the game! The ball is represented by a rotating star (taken from my HW2 animation).
-	   The left padde is controlled with W and S, the right paddle is controlled with the Up and Down arrows.
+CLASS: CS3113 Homework 4 - Space Invaders remake
+NOTES: features missing - make start text bob up and down, arrow keys for motion, implement bullets, implement collision detection for bullets, enemies don't yet move.
 */
 
 #ifdef _WINDOWS
@@ -68,6 +67,34 @@ public:
 	float height;
 };
 
+class Vector3 {
+public:
+	Vector3() :x(0.0f), y(0.0f), z(0.0f){}
+	Vector3(float initX, float initY, float initZ) : 
+		x(initX), y(initY), z(initZ){}
+
+	float x;
+	float y;
+	float z;
+};
+
+//class Entity to give all objects of the game a space to live in the program
+class Entity{
+public:
+	Entity(SheetSprite iSprite, Vector3 iPosition, Vector3 iVelocity, Vector3 iSize) : 
+		sprite(iSprite), position(iPosition), size(iSize), alive(true){}
+	void Draw(ShaderProgram *program){
+		sprite.Draw(program);
+	}
+
+	Vector3 position;
+	Vector3 velocity;
+	Vector3 size;
+	float rotation;
+	SheetSprite sprite;
+	bool alive;
+};
+
 //loads textures for building
 GLuint LoadTexture(const char *image_path){
 	SDL_Surface *testTexture = IMG_Load(image_path);
@@ -120,9 +147,6 @@ void drawText(ShaderProgram *program, int fontTexture, std::string text, float s
 	glDisableVertexAttribArray(program->texCoordAttribute);
 }
 
-void Render(){
-
-}
 
 
 int main(int argc, char *argv[])
@@ -157,8 +181,17 @@ int main(int argc, char *argv[])
 	//for keeping time
 	float lastFrameTicks = 0.0f;
 
-	//for starting game
-	bool start = false;
+
+	//vector to hold all enemy entities
+	std::vector<Entity> enemies;
+	SheetSprite enemySprite(sprites, 424.0f/1024.0f, 0.0f, 324.0f / 1024.0f, 340.0f / 512.0f, 0.5f);
+	Vector3 initializer;  //creates 0,0,0 vector3 for initialization
+	for (size_t i = 0; i < 30; i++){
+		Entity enemy(enemySprite, initializer, initializer, initializer);
+		enemy.size.x = enemy.sprite.size;  // is this right? *****
+		enemy.size.y = enemy.sprite.size;  // is this right? *****
+		enemies.push_back(enemy);
+	}
 
 
 	//start-screen text
@@ -167,7 +200,7 @@ int main(int argc, char *argv[])
 
 
 	//initializing textures from the spritesheet
-	SheetSprite blueShip(sprites, 0.0f, 0.0f, 422.0f/1024.0f, 372.0f/512.0f, 0.1f);
+	SheetSprite blueShip(sprites, 0.0f, 0.0f, 422.0f/1024.0f, 372.0f/512.0f, 1.0f);
 
 
 	while (!done) {
@@ -175,13 +208,13 @@ int main(int argc, char *argv[])
 			if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE) {
 				done = true;
 			}
-			else if (event.type == SDL_KEYDOWN){
-				if (event.key.keysym.scancode == SDL_SCANCODE_SPACE){    //press space to start the ball
-					if (!start){
-						start = true;
-					}
-				}
-			}
+			//else if (event.type == SDL_KEYDOWN){
+			//	if (event.key.keysym.scancode == SDL_SCANCODE_SPACE){    //press space to start the ball
+			//		if (!start){
+			//			start = true;
+			//		}
+			//	}
+			//}
 		}
 		const Uint8 *keys = SDL_GetKeyboardState(NULL);
 
@@ -229,7 +262,22 @@ int main(int argc, char *argv[])
 		}
 		else {
 			modelMatrix.identity();
+			modelMatrix.Translate(-1.0f, -1.0f, 0.0f);
+			modelMatrix.Scale(1.5, 1, 1);
+			program.setModelMatrix(modelMatrix);
 			blueShip.Draw(&program);
+
+			float spacing = 0.0f;				//initialize space btween enemies
+			for (size_t i = 0; i < 5; i++){
+				if (enemies[i].alive){
+					modelMatrix.identity();
+					modelMatrix.Translate(-1.5f + spacing, 0.5f, 0.0f);		// translate starting from as far as -1.5f
+					modelMatrix.Scale(1.5, 1, 1);
+					program.setModelMatrix(modelMatrix);
+					enemies[i].Draw(&program);
+					spacing += enemies[i].size.x * 1.25;					// increment spacing by the size of the enemy last drawn, scaled by 1.25
+				}
+			}
 		}
 
 
