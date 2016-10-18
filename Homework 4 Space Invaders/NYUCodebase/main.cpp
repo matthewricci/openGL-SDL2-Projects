@@ -2,6 +2,7 @@
 NAME: Matthew Ricci
 CLASS: CS3113 Homework 4 - Space Invaders remake
 NOTES: features missing - make start text bob up and down, arrow keys for motion, implement bullets, implement collision detection for bullets, enemies don't yet move.
+	IF COLLISION IS MESSED UP: keep in mind you're scaling the player ship by 0.8 after its width/height is set
 */
 
 #ifdef _WINDOWS
@@ -181,26 +182,38 @@ int main(int argc, char *argv[])
 	//for keeping time
 	float lastFrameTicks = 0.0f;
 
+	//define entity for the player ship
+	Vector3 initializer;  //creates 0,0,0 vector3 for initialization
+	SheetSprite blueShip(sprites, 0.0f, 0.0f, 422.0f / 1024.0f, 372.0f / 512.0f, 1.0f);	 //initializing textures from the spritesheet
+	Entity player(blueShip, initializer, initializer, initializer);
 
 	//vector to hold all enemy entities
 	std::vector<Entity> enemies;
 	SheetSprite enemySprite(sprites, 424.0f/1024.0f, 0.0f, 324.0f / 1024.0f, 340.0f / 512.0f, 0.5f);
-	Vector3 initializer;  //creates 0,0,0 vector3 for initialization
 	for (size_t i = 0; i < 30; i++){
-		Entity enemy(enemySprite, initializer, initializer, initializer);
-		enemy.size.x = enemy.sprite.size;  // is this right? *****
+		Entity enemy(enemySprite, initializer, initializer, initializer);  //initializer defined where player ship created
+		enemy.size.x = enemy.sprite.size;  // is this right? ***** times aspect
 		enemy.size.y = enemy.sprite.size;  // is this right? *****
 		enemies.push_back(enemy);
 	}
 
+	//creating an object pool for the player's bullets
+#define MAX_BULLETS 5
+	int blueBulletIndex = 0;
+	SheetSprite blueBulletSprite(sprites, 0.0f, 374.0f / 512.0f, 9.0f / 1024.0f, 37.0f / 512.0f, 0.5f);
+	std::vector<Entity> blueBulletPool;
+	for (size_t i = 0; i < MAX_BULLETS; i++){
+		Entity blueBullet(blueBulletSprite, initializer, initializer, initializer);
+		blueBullet.size.x = blueBulletSprite.width * blueBulletSprite.size;
+		blueBullet.size.y = blueBulletSprite.height * blueBulletSprite.size;
+		blueBullet.position.x = -2000.0f;
+		blueBullet.alive = false;
+		blueBulletPool.push_back(blueBullet);
+	}
 
 	//start-screen text
 	std::string first_line = "~ Bootleg Invaders ~";
 	std::string second_line = "Press space to begin the adventure!";
-
-
-	//initializing textures from the spritesheet
-	SheetSprite blueShip(sprites, 0.0f, 0.0f, 422.0f/1024.0f, 372.0f/512.0f, 1.0f);
 
 
 	while (!done) {
@@ -216,19 +229,25 @@ int main(int argc, char *argv[])
 			//	}
 			//}
 		}
+
+		//for general time-keeping between frames
+		float ticks = (float)SDL_GetTicks() / 1000.0f;
+		std::cout << SDL_GetTicks() << std::endl;
+		float elapsed = ticks - lastFrameTicks;
+		lastFrameTicks = ticks;
+
 		const Uint8 *keys = SDL_GetKeyboardState(NULL);
 
 		//start game by pressing space
 		if (state == START_SCREEN && keys[SDL_SCANCODE_SPACE])
 			state = LEVEL_ONE;
+		if (state == LEVEL_ONE && keys[SDL_SCANCODE_LEFT])
+			player.position.x -= 1.5f * elapsed;
+		if (state == LEVEL_ONE && keys[SDL_SCANCODE_RIGHT])
+			player.position.x += 1.5f * elapsed;
 
 		glClear(GL_COLOR_BUFFER_BIT);
 
-
-		float ticks = (float)SDL_GetTicks() / 1000.0f;
-		std::cout << SDL_GetTicks() << std::endl;
-		float elapsed = ticks - lastFrameTicks;
-		lastFrameTicks = ticks;
 
 		float vertices[] = { -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, };
 
@@ -260,12 +279,32 @@ int main(int argc, char *argv[])
 			modelMatrix.Translate(-3.05f, 0.0f, 0.0f);
 			drawText(&program, font, second_line, 0.18f, 0.0f, &modelMatrix);
 		}
+		//drawing the game level, if the gamestate is set to it
 		else {
 			modelMatrix.identity();
-			modelMatrix.Translate(-1.0f, -1.0f, 0.0f);
-			modelMatrix.Scale(1.5, 1, 1);
+			modelMatrix.Translate(player.position.x, -1.0f, 0.0f);
+			modelMatrix.Scale(1, 0.8, 1);
 			program.setModelMatrix(modelMatrix);
 			blueShip.Draw(&program);
+			if (state == LEVEL_ONE && keys[SDL_SCANCODE_SPACE]){
+				blueBulletPool[blueBulletIndex].position.x = player.position.x;
+				blueBulletPool[blueBulletIndex].position.y = player.position.y;
+				blueBulletPool[blueBulletIndex].Draw(&program);
+				blueBulletPool[blueBulletIndex].alive = true;
+				if (blueBulletIndex < 4)
+					blueBulletIndex++;
+				else
+					blueBulletIndex = 0;
+			}
+
+			for (size_t i = 0; i < blueBulletPool.size(); i++){
+				if (blueBulletPool[i].alive){
+					modelMatrix.identity();
+					modelMatrix.Translate(blueBulletPool[i].position.x, blueBulletPool[i].position.y, 0.0f);
+					blueBulletPool[i].Draw(&program);
+				}
+
+			}
 
 			float spacing = 0.0f;				//initialize space btween enemies
 			for (size_t i = 0; i < 5; i++){
