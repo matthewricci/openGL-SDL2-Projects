@@ -1,8 +1,11 @@
 /*
 NAME: Matthew Ricci
 CLASS: CS3113 Homework 4 - Space Invaders remake
-NOTES: features missing - make start text bob up and down, arrow keys for motion, implement bullets, implement collision detection for bullets, enemies don't yet move.
-	IF COLLISION IS MESSED UP: keep in mind you're scaling the player ship by 0.8 after its width/height is set
+NOTES: I didn't get to finish this project. I have most of it done, but the collision detection is completely wrong.
+	I would need help/more time to look through the code to fix it. However, the two game states are there, the game
+	employs a two-state system, and uses style sheets. The bullets are stored via object pools.
+
+	Press space to start, press space to shoot.
 */
 
 #ifdef _WINDOWS
@@ -213,7 +216,7 @@ int main(int argc, char *argv[])
 
 	//vector to hold all enemy entities
 	std::vector<Entity> enemies;
-	SheetSprite enemySprite(sprites, 424.0f/1024.0f, 0.0f, 324.0f / 1024.0f, 340.0f / 512.0f, 0.25f);
+	SheetSprite enemySprite(sprites, 424.0f/1024.0f, 0.0f, 324.0f / 1024.0f, 340.0f / 512.0f, 0.3f);
 	for (size_t i = 0; i < 8; i++){
 		Entity enemy(enemySprite, Vector3(0.0f, 0.8f, 0.0f), initializer, initializer);  //initializer defined where player ship created
 		enemy.size.x = enemy.sprite.size * (enemy.sprite.width / enemy.sprite.height);  // is this right? ***** times aspect
@@ -259,8 +262,8 @@ int main(int argc, char *argv[])
 	std::string score = "Score: " + std::to_string(points);
 
 	float spacing = 0.0f;				//initialize space btween enemies
-	float distance = 0.0f;
-	float x = 0.0f;
+	float distance = 0.0f;				//tracks
+	float x = 2.0f;
 
 	//used as a time counter for enemy movement
 	float timeCount = 0.0f;
@@ -312,9 +315,6 @@ int main(int argc, char *argv[])
 
 		const Uint8 *keys = SDL_GetKeyboardState(NULL);
 
-		//start game by pressing space
-		//if (state == START_SCREEN && keys[SDL_SCANCODE_SPACE])
-		//	state = LEVEL_ONE;
 		if (state == LEVEL_ONE && keys[SDL_SCANCODE_LEFT])
 			player.position.x -= 1.5f * elapsed;
 		if (state == LEVEL_ONE && keys[SDL_SCANCODE_RIGHT])
@@ -367,17 +367,6 @@ int main(int argc, char *argv[])
 			//modelMatrix.Scale(1, 0.8, 1);
 			program.setModelMatrix(modelMatrix);
 			blueShip.Draw(&program);
-			//if (state == LEVEL_ONE && keys[SDL_SCANCODE_SPACE]){
-			//	blueBulletPool[blueBulletIndex].position.x = player.position.x;
-			//	blueBulletPool[blueBulletIndex].position.y = player.position.y;
-			//	blueBulletPool[blueBulletIndex].Draw(&program);
-			//	blueBulletPool[blueBulletIndex].alive = true;
-			//	blueBulletPool[blueBulletIndex].velocity.y = 1.5f;
-			//	if (blueBulletIndex < 4)
-			//		blueBulletIndex++;
-			//	else
-			//		blueBulletIndex = 0;
-			//}
 
 			//draw all active bullets
 			for (size_t i = 0; i < blueBulletPool.size(); i++){
@@ -409,23 +398,22 @@ int main(int argc, char *argv[])
 			}
 
 			float spacing = 0.0f;				//initialize space btween enemies
-			//float distance = 0.0f;
-			//float x = 0.5f;
-			if (distance > 2.0f)
-				x = -0.2f * elapsed;
-			if (distance < -2.0f)
-				x = 0.2f * elapsed;
+			if (distance > 1.5f)
+				x = -0.5f * elapsed;
+			if (distance < -1.5f)
+				x = 0.5f * elapsed;
 			distance += x;
 			for (size_t i = 0; i < enemies.size(); i++){
 				if (enemies[i].alive){
-					enemies[i].position.x += x;
+					//enemies[i].position.x += x;
+					enemies[i].position.x = (-1.5 * enemies[i].size.x * enemies.size()) + spacing + distance;
+					//enemies[i].position.x = 
 					modelMatrix.identity();
-					enemies[i].position.x = -1.5f + spacing + distance;
 					modelMatrix.Translate(enemies[i].position.x, enemies[i].position.y, 0.0f);		// translate starting from as far as -1.5f
 					//modelMatrix.Scale(1.5, 1, 1);
 					program.setModelMatrix(modelMatrix);
 					enemies[i].Draw(&program);
-					spacing += enemies[i].size.x * 4;					// increment spacing by the size of the enemy last drawn, scaled by 1.25
+					spacing += enemies[i].size.x * 3;  // increment spacing by the size of the enemy last drawn, scaled by 3
 				}
 			}
 
@@ -449,8 +437,6 @@ int main(int argc, char *argv[])
 				if (redBulletPool[i].alive){
 					redBulletPool[i].position.y += redBulletPool[i].velocity.y * elapsed;
 					if (detectCollision(&redBulletPool[i], &player)){
-						redBulletPool[i].velocity.y = 0;
-						redBulletPool[i].sprite = blueBulletSprite;
 						player.alive == false;
 					}
 					modelMatrix.identity();
