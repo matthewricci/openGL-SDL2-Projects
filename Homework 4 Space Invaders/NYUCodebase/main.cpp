@@ -96,6 +96,13 @@ public:
 	bool alive;
 };
 
+class bulletEntity : public Entity{		//bulletEntity derived class from Entity
+public:
+	bulletEntity(SheetSprite iSprite, Vector3 iPosition, Vector3 iVelocity, Vector3 iSize) : 
+		Entity(iSprite, iPosition, iVelocity, iSize){}		//copy constructor
+	float timeAlive = 0.0f;
+};
+
 //loads textures for building
 GLuint LoadTexture(const char *image_path){
 	SDL_Surface *testTexture = IMG_Load(image_path);
@@ -109,6 +116,7 @@ GLuint LoadTexture(const char *image_path){
 	return textureID;
 }
 
+//draws a string to screen given a font sheet and a string
 void drawText(ShaderProgram *program, int fontTexture, std::string text, float size, float spacing, Matrix *modelMatrix) {
 	float texture_size = 1.0 / 16.0f;
 	std::vector<float> vertexData;
@@ -148,12 +156,28 @@ void drawText(ShaderProgram *program, int fontTexture, std::string text, float s
 	glDisableVertexAttribArray(program->texCoordAttribute);
 }
 
-
+//detects collision via the basic box-to-box algorithm, return true if detected, false otherwise
+bool detectCollision(const Entity *a, const Entity *b){
+			//if a's bottom is higher than b's top, no collision
+	if ((a->position.y - a->size.y / 2) > (b->position.y + b->size.y / 2))
+		return false;
+			//if a's top if lower than b's bottom, no collision
+	else if ((a->position.y + a->size.y / 2) > (b->position.y - b->size.y / 2))
+		return false;
+			//if a's left is larger than b's right, no collision
+	else if ((a->position.x - a->size.x / 2) > (b->position.x + b->size.x / 2))
+		return false;
+			//if a's right is smaller than b's left, no collision
+	else if ((a->position.x + a->size.x / 2) < (b->position.x - b->size.x / 2))
+		return false;
+	else
+		return true;
+}
 
 int main(int argc, char *argv[])
 {
 	SDL_Init(SDL_INIT_VIDEO);
-	displayWindow = SDL_CreateWindow("My Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 360, SDL_WINDOW_OPENGL);
+	displayWindow = SDL_CreateWindow("My Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640*1.5, 360*1.5, SDL_WINDOW_OPENGL);
 	SDL_GLContext context = SDL_GL_CreateContext(displayWindow);
 	SDL_GL_MakeCurrent(displayWindow, context);
 #ifdef _WINDOWS
@@ -167,7 +191,7 @@ int main(int argc, char *argv[])
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 
 	//texture coordinates
-	glViewport(0, 0, 640, 360);
+	glViewport(0, 0, 640*1.5, 360*1.5);
 	ShaderProgram program(RESOURCE_FOLDER"vertex_textured.glsl", RESOURCE_FOLDER"fragment_textured.glsl");
 	glUseProgram(program.programID);
 	GLuint background = LoadTexture("Space Background.png");
@@ -184,63 +208,113 @@ int main(int argc, char *argv[])
 
 	//define entity for the player ship
 	Vector3 initializer;  //creates 0,0,0 vector3 for initialization
-	SheetSprite blueShip(sprites, 0.0f, 0.0f, 422.0f / 1024.0f, 372.0f / 512.0f, 1.0f);	 //initializing textures from the spritesheet
-	Entity player(blueShip, initializer, initializer, initializer);
+	SheetSprite blueShip(sprites, 0.0f, 0.0f, 422.0f / 1024.0f, 372.0f / 512.0f, 0.5f);	 //initializing textures from the spritesheet
+	Entity player(blueShip, Vector3(0.0f, -1.6f, 0.0f), initializer, initializer);
 
 	//vector to hold all enemy entities
 	std::vector<Entity> enemies;
-	SheetSprite enemySprite(sprites, 424.0f/1024.0f, 0.0f, 324.0f / 1024.0f, 340.0f / 512.0f, 0.5f);
-	for (size_t i = 0; i < 30; i++){
-		Entity enemy(enemySprite, initializer, initializer, initializer);  //initializer defined where player ship created
-		enemy.size.x = enemy.sprite.size;  // is this right? ***** times aspect
+	SheetSprite enemySprite(sprites, 424.0f/1024.0f, 0.0f, 324.0f / 1024.0f, 340.0f / 512.0f, 0.25f);
+	for (size_t i = 0; i < 8; i++){
+		Entity enemy(enemySprite, Vector3(0.0f, 0.8f, 0.0f), initializer, initializer);  //initializer defined where player ship created
+		enemy.size.x = enemy.sprite.size * (enemy.sprite.width / enemy.sprite.height);  // is this right? ***** times aspect
 		enemy.size.y = enemy.sprite.size;  // is this right? *****
 		enemies.push_back(enemy);
 	}
 
 	//creating an object pool for the player's bullets
-#define MAX_BULLETS 5
+#define MAX_BULLETS 10
+	
+	//initialize indexes
 	int blueBulletIndex = 0;
-	SheetSprite blueBulletSprite(sprites, 0.0f, 374.0f / 512.0f, 9.0f / 1024.0f, 37.0f / 512.0f, 0.5f);
-	std::vector<Entity> blueBulletPool;
+	int redBulletIndex = 0;
+
+	//initialize bullet sprites
+	SheetSprite blueBulletSprite(sprites, 0.0f, 374.0f / 512.0f, 9.0f / 1024.0f, 37.0f / 512.0f, 0.2f);
+	SheetSprite redBulletSprite(sprites, 0.0f, 413.0f / 512.0f, 9.0f / 1024.0f, 37.0f / 512.0f, 0.2f);
+
+	//define object pool for player's bullets
+	std::vector<bulletEntity> blueBulletPool;
 	for (size_t i = 0; i < MAX_BULLETS; i++){
-		Entity blueBullet(blueBulletSprite, initializer, initializer, initializer);
-		blueBullet.size.x = blueBulletSprite.width * blueBulletSprite.size;
-		blueBullet.size.y = blueBulletSprite.height * blueBulletSprite.size;
+		bulletEntity blueBullet(blueBulletSprite, initializer, initializer, initializer);
+		blueBullet.size.x = (blueBulletSprite.width * blueBulletSprite.height) * blueBulletSprite.size; // mult. by aspect ratio
+		blueBullet.size.y = blueBulletSprite.size;
 		blueBullet.position.x = -2000.0f;
 		blueBullet.alive = false;
 		blueBulletPool.push_back(blueBullet);
 	}
+	//define object pool for enemy's bullets
+	std::vector<bulletEntity> redBulletPool;
+	for (size_t i = 0; i < MAX_BULLETS; i++){
+		bulletEntity redBullet(redBulletSprite, initializer, initializer, initializer);
+		redBullet.size.x = (redBulletSprite.width * redBulletSprite.height) * redBulletSprite.size; // mult. by aspect ratio
+		redBullet.size.y = redBulletSprite.size;
+		redBullet.alive = false;
+		redBulletPool.push_back(redBullet);
+	}
 
-	//start-screen text
+	//start-screen text and game level score text
 	std::string first_line = "~ Bootleg Invaders ~";
 	std::string second_line = "Press space to begin the adventure!";
+	int points = 0;
+	std::string score = "Score: " + std::to_string(points);
 
+	float spacing = 0.0f;				//initialize space btween enemies
+	float distance = 0.0f;
+	float x = 0.0f;
+
+	//used as a time counter for enemy movement
+	float timeCount = 0.0f;
+
+	//used to space out player's shots
+	float lastShotEnemy = 0.0f;
+
+	//used to space out enemy's shots
+	float lastShotPlayer = 0.0f;
 
 	while (!done) {
+		//for general time-keeping between frames
+		float ticks = (float)SDL_GetTicks() / 1000.0f;
+		float elapsed = ticks - lastFrameTicks;
+		lastFrameTicks = ticks;
+		timeCount += elapsed;
+		lastShotEnemy += elapsed;		//buffers the player's shots to at most once a second
+		lastShotPlayer += elapsed;		//buffers the enemy's shots to exactly once a second
+
 		while (SDL_PollEvent(&event)) {
 			if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE) {
 				done = true;
 			}
-			//else if (event.type == SDL_KEYDOWN){
-			//	if (event.key.keysym.scancode == SDL_SCANCODE_SPACE){    //press space to start the ball
-			//		if (!start){
-			//			start = true;
-			//		}
-			//	}
-			//}
+			else if (event.type == SDL_KEYDOWN){
+				if (state == LEVEL_ONE && event.key.keysym.scancode == SDL_SCANCODE_SPACE){    //press space to shoot
+					if (lastShotEnemy > 1.0f){	//wait 1 second between shots
+						lastShotEnemy = 0.0f;	//reset lastShot timer
+						blueBulletPool[blueBulletIndex].position.x = player.position.x;
+						blueBulletPool[blueBulletIndex].position.y = player.position.y + player.size.y/2;
+						blueBulletPool[blueBulletIndex].alive = true;
+						blueBulletPool[blueBulletIndex].velocity.y = 2.5f;
+						if (blueBulletIndex < 9)
+							blueBulletIndex++;
+						else
+							blueBulletIndex = 0;
+					}
+				}
+				else if (state == START_SCREEN && event.key.keysym.scancode == SDL_SCANCODE_SPACE)
+					state = LEVEL_ONE;
+			}
 		}
 
-		//for general time-keeping between frames
-		float ticks = (float)SDL_GetTicks() / 1000.0f;
-		std::cout << SDL_GetTicks() << std::endl;
-		float elapsed = ticks - lastFrameTicks;
-		lastFrameTicks = ticks;
+		////for general time-keeping between frames
+		//float ticks = (float)SDL_GetTicks() / 1000.0f;
+		//std::cout << SDL_GetTicks() << std::endl;
+		//float elapsed = ticks - lastFrameTicks;
+		//lastFrameTicks = ticks;
+		//timeCount += elapsed;
 
 		const Uint8 *keys = SDL_GetKeyboardState(NULL);
 
 		//start game by pressing space
-		if (state == START_SCREEN && keys[SDL_SCANCODE_SPACE])
-			state = LEVEL_ONE;
+		//if (state == START_SCREEN && keys[SDL_SCANCODE_SPACE])
+		//	state = LEVEL_ONE;
 		if (state == LEVEL_ONE && keys[SDL_SCANCODE_LEFT])
 			player.position.x -= 1.5f * elapsed;
 		if (state == LEVEL_ONE && keys[SDL_SCANCODE_RIGHT])
@@ -279,44 +353,122 @@ int main(int argc, char *argv[])
 			modelMatrix.Translate(-3.05f, 0.0f, 0.0f);
 			drawText(&program, font, second_line, 0.18f, 0.0f, &modelMatrix);
 		}
+
 		//drawing the game level, if the gamestate is set to it
 		else {
+			//draw the score in the bottom-left corner
 			modelMatrix.identity();
-			modelMatrix.Translate(player.position.x, -1.0f, 0.0f);
-			modelMatrix.Scale(1, 0.8, 1);
+			modelMatrix.Translate(-3.25f, 1.7f, 0.0f);
+			drawText(&program, font, score, 0.18f, 0.0f, &modelMatrix);
+
+			//draw the player
+			modelMatrix.identity();
+			modelMatrix.Translate(player.position.x, player.position.y, player.position.z);
+			//modelMatrix.Scale(1, 0.8, 1);
 			program.setModelMatrix(modelMatrix);
 			blueShip.Draw(&program);
-			if (state == LEVEL_ONE && keys[SDL_SCANCODE_SPACE]){
-				blueBulletPool[blueBulletIndex].position.x = player.position.x;
-				blueBulletPool[blueBulletIndex].position.y = player.position.y;
-				blueBulletPool[blueBulletIndex].Draw(&program);
-				blueBulletPool[blueBulletIndex].alive = true;
-				if (blueBulletIndex < 4)
-					blueBulletIndex++;
-				else
-					blueBulletIndex = 0;
-			}
+			//if (state == LEVEL_ONE && keys[SDL_SCANCODE_SPACE]){
+			//	blueBulletPool[blueBulletIndex].position.x = player.position.x;
+			//	blueBulletPool[blueBulletIndex].position.y = player.position.y;
+			//	blueBulletPool[blueBulletIndex].Draw(&program);
+			//	blueBulletPool[blueBulletIndex].alive = true;
+			//	blueBulletPool[blueBulletIndex].velocity.y = 1.5f;
+			//	if (blueBulletIndex < 4)
+			//		blueBulletIndex++;
+			//	else
+			//		blueBulletIndex = 0;
+			//}
 
+			//draw all active bullets
 			for (size_t i = 0; i < blueBulletPool.size(); i++){
 				if (blueBulletPool[i].alive){
 					modelMatrix.identity();
+					blueBulletPool[i].position.y += blueBulletPool[i].velocity.y * elapsed;
 					modelMatrix.Translate(blueBulletPool[i].position.x, blueBulletPool[i].position.y, 0.0f);
+					program.setModelMatrix(modelMatrix);
 					blueBulletPool[i].Draw(&program);
+					if (blueBulletPool[i].timeAlive > 2.5f){	// if bullet shot more than 2 secs ago
+						blueBulletPool[i].timeAlive = 0.0f;		//get rid of it
+						blueBulletPool[i].alive = false;
+					}
+					else {
+						blueBulletPool[i].timeAlive += elapsed;  //else add elapsed time to its tracker
+						for (size_t i = 0; i < enemies.size(); i++){
+							if (enemies[i].alive){
+								if (detectCollision(&blueBulletPool[i], &enemies[i])){
+									blueBulletPool[i].alive = false;
+									enemies[i].alive = false;
+									points += 100;
+									score = "Score: " + std::to_string(points);
+								}
+							}
+						}
+					}
 				}
 
 			}
 
 			float spacing = 0.0f;				//initialize space btween enemies
-			for (size_t i = 0; i < 5; i++){
+			//float distance = 0.0f;
+			//float x = 0.5f;
+			if (distance > 2.0f)
+				x = -0.2f * elapsed;
+			if (distance < -2.0f)
+				x = 0.2f * elapsed;
+			distance += x;
+			for (size_t i = 0; i < enemies.size(); i++){
 				if (enemies[i].alive){
+					enemies[i].position.x += x;
 					modelMatrix.identity();
-					modelMatrix.Translate(-1.5f + spacing, 0.5f, 0.0f);		// translate starting from as far as -1.5f
-					modelMatrix.Scale(1.5, 1, 1);
+					enemies[i].position.x = -1.5f + spacing + distance;
+					modelMatrix.Translate(enemies[i].position.x, enemies[i].position.y, 0.0f);		// translate starting from as far as -1.5f
+					//modelMatrix.Scale(1.5, 1, 1);
 					program.setModelMatrix(modelMatrix);
 					enemies[i].Draw(&program);
-					spacing += enemies[i].size.x * 1.25;					// increment spacing by the size of the enemy last drawn, scaled by 1.25
+					spacing += enemies[i].size.x * 4;					// increment spacing by the size of the enemy last drawn, scaled by 1.25
 				}
 			}
+
+			//code for shooting back at player
+			if (lastShotPlayer > 1.0f){		//if it has been 1 second since last enemy shot
+				size_t enemyShooter = std::rand() % (enemies.size());		//get a random enemy from array and shoot
+				while (!enemies[enemyShooter].alive)		//while chosen enemy is not alive, find new enemy
+					enemyShooter = std::rand() % (enemies.size());
+				//size_t enemyShooter = 1;
+				lastShotPlayer = 0.0f;	//reset lastShotPlayer timer
+				redBulletPool[redBulletIndex].position.x = enemies[enemyShooter].position.x;
+				redBulletPool[redBulletIndex].position.y = enemies[enemyShooter].position.y - enemies[enemyShooter].size.y/4;
+				redBulletPool[redBulletIndex].alive = true;
+				redBulletPool[redBulletIndex].velocity.y = -2.5f;
+				if (redBulletIndex < 9)
+					redBulletIndex++;
+				else
+					redBulletIndex = 0;
+			}
+			for (size_t i = 0; i < redBulletPool.size(); i++){
+				if (redBulletPool[i].alive){
+					redBulletPool[i].position.y += redBulletPool[i].velocity.y * elapsed;
+					if (detectCollision(&redBulletPool[i], &player)){
+						redBulletPool[i].velocity.y = 0;
+						redBulletPool[i].sprite = blueBulletSprite;
+						player.alive == false;
+					}
+					modelMatrix.identity();
+					modelMatrix.Translate(redBulletPool[i].position.x, redBulletPool[i].position.y, 0.0f);
+					program.setModelMatrix(modelMatrix);
+					//redBulletPool[i].sprite = redBulletSprite;
+					redBulletPool[i].Draw(&program);
+					if (redBulletPool[i].timeAlive > 2.5f){	// if bullet shot more than 2 secs ago
+						redBulletPool[i].timeAlive = 0.0f;		//get rid of it
+						redBulletPool[i].alive = false;
+					}
+					else {
+						redBulletPool[i].timeAlive += elapsed;  //else add elapsed time to its tracker
+					}
+				}
+			}
+
+
 		}
 
 
