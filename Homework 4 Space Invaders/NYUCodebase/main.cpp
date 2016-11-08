@@ -3,7 +3,7 @@ NAME: Matthew Ricci
 CLASS: CS3113 Homework 4 - Space Invaders remake
 NOTES: I didn't get to finish this project. I have most of it done, but the collision detection is completely wrong.
 	I would need help/more time to look through the code to fix it. However, the two game states are there, the game
-	employs a two-state system, and uses style sheets. The bullets are stored via object pools.
+	employs a two-state system, and uses sprite sheets. The bullets are stored via object pools.
 
 	Press space to start, press space to shoot.
 */
@@ -86,7 +86,7 @@ public:
 class Entity{
 public:
 	Entity(SheetSprite iSprite, Vector3 iPosition, Vector3 iVelocity, Vector3 iSize) : 
-		sprite(iSprite), position(iPosition), size(iSize), alive(true){}
+		sprite(iSprite), position(iPosition), velocity(iVelocity), size(iSize), alive(true){}
 	void Draw(ShaderProgram *program){
 		sprite.Draw(program);
 	}
@@ -97,6 +97,14 @@ public:
 	float rotation;
 	SheetSprite sprite;
 	bool alive;
+};
+
+class shipEntity : public Entity{
+public:
+	shipEntity(SheetSprite iSprite, Vector3 iPosition, Vector3 iVelocity, Vector3 iSize, int iLives) :
+		Entity(iSprite, iPosition, iVelocity, iSize), lives(iLives){}		//copy constructor
+
+	int lives;
 };
 
 class bulletEntity : public Entity{		//bulletEntity derived class from Entity
@@ -162,16 +170,16 @@ void drawText(ShaderProgram *program, int fontTexture, std::string text, float s
 //detects collision via the basic box-to-box algorithm, return true if detected, false otherwise
 bool detectCollision(const Entity *a, const Entity *b){
 			//if a's bottom is higher than b's top, no collision
-	if ((a->position.y - a->size.y / 2) > (b->position.y + b->size.y / 2))
+	if ((a->position.y - (a->size.y / 2)) > (b->position.y + (b->size.y / 2)))
 		return false;
 			//if a's top if lower than b's bottom, no collision
-	else if ((a->position.y + a->size.y / 2) > (b->position.y - b->size.y / 2))
+	else if ((a->position.y + (a->size.y / 2)) > (b->position.y - (b->size.y / 2)))
 		return false;
 			//if a's left is larger than b's right, no collision
-	else if ((a->position.x - a->size.x / 2) > (b->position.x + b->size.x / 2))
+	else if ((a->position.x - (a->size.x / 2)) > (b->position.x + (b->size.x / 2)))
 		return false;
 			//if a's right is smaller than b's left, no collision
-	else if ((a->position.x + a->size.x / 2) < (b->position.x - b->size.x / 2))
+	else if ((a->position.x + (a->size.x / 2)) < (b->position.x - (b->size.x / 2)))
 		return false;
 	else
 		return true;
@@ -180,7 +188,7 @@ bool detectCollision(const Entity *a, const Entity *b){
 int main(int argc, char *argv[])
 {
 	SDL_Init(SDL_INIT_VIDEO);
-	displayWindow = SDL_CreateWindow("My Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640*1.5, 360*1.5, SDL_WINDOW_OPENGL);
+	displayWindow = SDL_CreateWindow("My Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640*3, 360*3, SDL_WINDOW_OPENGL);
 	SDL_GLContext context = SDL_GL_CreateContext(displayWindow);
 	SDL_GL_MakeCurrent(displayWindow, context);
 #ifdef _WINDOWS
@@ -194,7 +202,7 @@ int main(int argc, char *argv[])
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 
 	//texture coordinates
-	glViewport(0, 0, 640*1.5, 360*1.5);
+	glViewport(0, 0, 640*3, 360*3);
 	ShaderProgram program(RESOURCE_FOLDER"vertex_textured.glsl", RESOURCE_FOLDER"fragment_textured.glsl");
 	glUseProgram(program.programID);
 	GLuint background = LoadTexture("Space Background.png");
@@ -212,13 +220,15 @@ int main(int argc, char *argv[])
 	//define entity for the player ship
 	Vector3 initializer;  //creates 0,0,0 vector3 for initialization
 	SheetSprite blueShip(sprites, 0.0f, 0.0f, 422.0f / 1024.0f, 372.0f / 512.0f, 0.5f);	 //initializing textures from the spritesheet
-	Entity player(blueShip, Vector3(0.0f, -1.6f, 0.0f), initializer, initializer);
+	shipEntity player(blueShip, Vector3(0.0f, -1.6f, 0.0f), initializer, initializer, 3);
+	player.size.x = blueShip.size * (blueShip.width / blueShip.height);
+	player.size.y = blueShip.size;
 
 	//vector to hold all enemy entities
-	std::vector<Entity> enemies;
+	std::vector<shipEntity> enemies;
 	SheetSprite enemySprite(sprites, 424.0f/1024.0f, 0.0f, 324.0f / 1024.0f, 340.0f / 512.0f, 0.3f);
 	for (size_t i = 0; i < 8; i++){
-		Entity enemy(enemySprite, Vector3(0.0f, 0.8f, 0.0f), initializer, initializer);  //initializer defined where player ship created
+		shipEntity enemy(enemySprite, Vector3(0.0f, 0.8f, 0.0f), initializer, initializer, 1);  //initializer defined where player ship created
 		enemy.size.x = enemy.sprite.size * (enemy.sprite.width / enemy.sprite.height);  // is this right? ***** times aspect
 		enemy.size.y = enemy.sprite.size;  // is this right? *****
 		enemies.push_back(enemy);
@@ -240,6 +250,7 @@ int main(int argc, char *argv[])
 	for (size_t i = 0; i < MAX_BULLETS; i++){
 		bulletEntity blueBullet(blueBulletSprite, initializer, initializer, initializer);
 		blueBullet.size.x = (blueBulletSprite.width * blueBulletSprite.height) * blueBulletSprite.size; // mult. by aspect ratio
+		//blueBullet.size.x = 0.5f;
 		blueBullet.size.y = blueBulletSprite.size;
 		blueBullet.position.x = -2000.0f;
 		blueBullet.alive = false;
@@ -315,10 +326,18 @@ int main(int argc, char *argv[])
 
 		const Uint8 *keys = SDL_GetKeyboardState(NULL);
 
-		if (state == LEVEL_ONE && keys[SDL_SCANCODE_LEFT])
-			player.position.x -= 1.5f * elapsed;
-		if (state == LEVEL_ONE && keys[SDL_SCANCODE_RIGHT])
-			player.position.x += 1.5f * elapsed;
+		if (state == LEVEL_ONE && keys[SDL_SCANCODE_LEFT]){
+			if (player.position.x < -3.4f)
+				player.position.x += 0.02f;
+			else
+				player.position.x -= 1.5f * elapsed;
+		}
+		if (state == LEVEL_ONE && keys[SDL_SCANCODE_RIGHT]){
+			if (player.position.x > 3.4f)
+				player.position.x -= 0.02f;
+			else
+				player.position.x += 1.5f * elapsed;
+		}
 
 		glClear(GL_COLOR_BUFFER_BIT);
 
@@ -362,11 +381,13 @@ int main(int argc, char *argv[])
 			drawText(&program, font, score, 0.18f, 0.0f, &modelMatrix);
 
 			//draw the player
-			modelMatrix.identity();
-			modelMatrix.Translate(player.position.x, player.position.y, player.position.z);
-			//modelMatrix.Scale(1, 0.8, 1);
-			program.setModelMatrix(modelMatrix);
-			blueShip.Draw(&program);
+			if (player.alive){
+				modelMatrix.identity();
+				modelMatrix.Translate(player.position.x, player.position.y, player.position.z);
+				//modelMatrix.Scale(1, 0.8, 1);
+				program.setModelMatrix(modelMatrix);
+				blueShip.Draw(&program);
+			}
 
 			//draw all active bullets
 			for (size_t i = 0; i < blueBulletPool.size(); i++){
@@ -399,11 +420,12 @@ int main(int argc, char *argv[])
 
 			float spacing = 0.0f;				//initialize space btween enemies
 			if (distance > 1.5f)
-				x = -0.5f * elapsed;
+				x = -0.5f;
 			if (distance < -1.5f)
-				x = 0.5f * elapsed;
-			distance += x;
+				x = 0.5f;
+			distance += x * elapsed;
 			for (size_t i = 0; i < enemies.size(); i++){
+				spacing += enemies[i].size.x * 3;  // increment spacing by the size of the enemy last drawn, scaled by 3
 				if (enemies[i].alive){
 					//enemies[i].position.x += x;
 					enemies[i].position.x = (-1.5 * enemies[i].size.x * enemies.size()) + spacing + distance;
@@ -413,7 +435,6 @@ int main(int argc, char *argv[])
 					//modelMatrix.Scale(1.5, 1, 1);
 					program.setModelMatrix(modelMatrix);
 					enemies[i].Draw(&program);
-					spacing += enemies[i].size.x * 3;  // increment spacing by the size of the enemy last drawn, scaled by 3
 				}
 			}
 
@@ -437,7 +458,10 @@ int main(int argc, char *argv[])
 				if (redBulletPool[i].alive){
 					redBulletPool[i].position.y += redBulletPool[i].velocity.y * elapsed;
 					if (detectCollision(&redBulletPool[i], &player)){
-						player.alive == false;
+						if (player.lives == 0)
+							player.alive = false;
+						else
+							player.lives--;
 					}
 					modelMatrix.identity();
 					modelMatrix.Translate(redBulletPool[i].position.x, redBulletPool[i].position.y, 0.0f);
