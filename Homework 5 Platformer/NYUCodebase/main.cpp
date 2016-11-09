@@ -284,7 +284,7 @@ int main(int argc, char *argv[])
 	bool done = false;
 
 	//setting default color
-	glClearColor(0.9f, 0.2f, 0.2f, 1.0f);
+	glClearColor(0.0f, 0.525f, 0.988f, 1.0f);
 
 	//texture coordinates
 	glViewport(0, 0, 640, 360);
