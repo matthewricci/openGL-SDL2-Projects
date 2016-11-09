@@ -1,6 +1,6 @@
 /*
 NAME: Matthew Ricci
-CLASS: CS3113 Homework 45 - Platformer
+CLASS: CS3113 Homework 5 - Platformer
 NOTES: 
 
 */
@@ -194,80 +194,80 @@ bool detectCollision(const Entity *a, const Entity *b){
 		return true;
 }
 
-void genWorldFromTile(ShaderProgram *program, GLuint tilesheet, Matrix *modelMatrix, unsigned char **levelData){
-	float tile_size = 16;
-	vector<float> vertexData;
-	vector<float> texCoordData;
-	for (int y = 0; y < LEVEL_HEIGHT; y++){
-		for (int x = 0; x < LEVEL_WIDTH; x++){
-			float u = (float)(((int)levelData[y][x]) % SPRITE_COUNT_X) / (float)SPRITE_COUNT_X;
-			float v = (float)(((int)levelData[y][x]) / SPRITE_COUNT_X) / (float)SPRITE_COUNT_Y;
+//void genWorldFromTile(ShaderProgram *program, GLuint tilesheet, Matrix *modelMatrix, unsigned char **levelData){
+//	float tile_size = 16;
+//	vector<float> vertexData;
+//	vector<float> texCoordData;
+//	for (int y = 0; y < LEVEL_HEIGHT; y++){
+//		for (int x = 0; x < LEVEL_WIDTH; x++){
+//			float u = (float)(((int)levelData[y][x]) % SPRITE_COUNT_X) / (float)SPRITE_COUNT_X;
+//			float v = (float)(((int)levelData[y][x]) / SPRITE_COUNT_X) / (float)SPRITE_COUNT_Y;
+//
+//			float spriteWidth = 1.0f / (float)SPRITE_COUNT_X;
+//			float spriteHeight = 1.0f / (float)SPRITE_COUNT_Y;
+//
+//			vertexData.insert(vertexData.end(), {
+//
+//				tile_size * x, -tile_size * y,
+//				tile_size * x, (-tile_size * y) - tile_size,
+//				(tile_size * x) + tile_size, (-tile_size * y) - tile_size,
+//
+//				tile_size * x, -tile_size * y,
+//				(tile_size * x) + tile_size, (-tile_size * y) - tile_size,
+//				(tile_size * x) + tile_size, -tile_size * y
+//			});
+//
+//			texCoordData.insert(texCoordData.end(), {
+//				u, v,
+//				u, v + (spriteHeight),
+//				u + spriteWidth, v + (spriteHeight),
+//
+//				u, v,
+//				u + spriteWidth, v + (spriteHeight),
+//				u + spriteWidth, v
+//			});
+//		}
+//	}
+//	glBindTexture(GL_TEXTURE_2D, tilesheet);
+//	glVertexAttribPointer(program->positionAttribute, 2, GL_FLOAT, false, 0, &vertexData);
+//	glEnableVertexAttribArray(program->positionAttribute);
+//
+//	glVertexAttribPointer(program->texCoordAttribute, 2, GL_FLOAT, false, 0, &texCoordData);
+//	glEnableVertexAttribArray(program->texCoordAttribute);
+//
+//	glDrawArrays(GL_TRIANGLES, 0, 600);
+//
+//}
 
-			float spriteWidth = 1.0f / (float)SPRITE_COUNT_X;
-			float spriteHeight = 1.0f / (float)SPRITE_COUNT_Y;
-
-			vertexData.insert(vertexData.end(), {
-
-				tile_size * x, -tile_size * y,
-				tile_size * x, (-tile_size * y) - tile_size,
-				(tile_size * x) + tile_size, (-tile_size * y) - tile_size,
-
-				tile_size * x, -tile_size * y,
-				(tile_size * x) + tile_size, (-tile_size * y) - tile_size,
-				(tile_size * x) + tile_size, -tile_size * y
-			});
-
-			texCoordData.insert(texCoordData.end(), {
-				u, v,
-				u, v + (spriteHeight),
-				u + spriteWidth, v + (spriteHeight),
-
-				u, v,
-				u + spriteWidth, v + (spriteHeight),
-				u + spriteWidth, v
-			});
-		}
-	}
-	glBindTexture(GL_TEXTURE_2D, tilesheet);
-	glVertexAttribPointer(program->positionAttribute, 2, GL_FLOAT, false, 0, &vertexData);
-	glEnableVertexAttribArray(program->positionAttribute);
-
-	glVertexAttribPointer(program->texCoordAttribute, 2, GL_FLOAT, false, 0, &texCoordData);
-	glEnableVertexAttribArray(program->texCoordAttribute);
-
-	glDrawArrays(GL_TRIANGLES, 0, 600);
-
-}
-
-bool readLayerData(std::ifstream &stream, unsigned char **levelData) {
-	string line;
-	while (getline(stream, line)) {
-		if (line == "") { break; }
-		istringstream sStream(line);
-		string key, value;
-		getline(sStream, key, '=');
-		getline(sStream, value);
-		if (key == "data") {
-			for (int y = 0; y < LEVEL_HEIGHT; y++) {
-				getline(stream, line);
-				istringstream lineStream(line);
-				string tile;
-				for (int x = 0; x < LEVEL_WIDTH; x++) {
-					getline(lineStream, tile, ',');
-					unsigned char val = (unsigned char)atoi(tile.c_str());
-					if (val > 0) {
-						// be careful, the tiles in this format are indexed from 1 not 0
-						levelData[y][x] = val - 1;
-					}
-					else {
-						levelData[y][x] = 0;
-					}
-				}
-			}
-		}
-	}
-	return true;
-}
+//bool readLayerData(std::ifstream &stream, unsigned char **levelData) {
+//	string line;
+//	while (getline(stream, line)) {
+//		if (line == "") { break; }
+//		istringstream sStream(line);
+//		string key, value;
+//		getline(sStream, key, '=');
+//		getline(sStream, value);
+//		if (key == "data") {
+//			for (int y = 0; y < LEVEL_HEIGHT; y++) {
+//				getline(stream, line);
+//				istringstream lineStream(line);
+//				string tile;
+//				for (int x = 0; x < LEVEL_WIDTH; x++) {
+//					getline(lineStream, tile, ',');
+//					unsigned char val = (unsigned char)atoi(tile.c_str());
+//					if (val > 0) {
+//						// be careful, the tiles in this format are indexed from 1 not 0
+//						levelData[y][x] = val - 1;
+//					}
+//					else {
+//						levelData[y][x] = 0;
+//					}
+//				}
+//			}
+//		}
+//	}
+//	return true;
+//}
 
 
 int main(int argc, char *argv[])
@@ -303,62 +303,79 @@ int main(int argc, char *argv[])
 	//for keeping time
 	float lastFrameTicks = 0.0f;
 
-	//define entity for the player ship
-	Vector3 initializer;  //creates 0,0,0 vector3 for initialization
-	SheetSprite blueShip(sprites, 0.0f, 0.0f, 422.0f / 1024.0f, 372.0f / 512.0f, 0.5f);	 //initializing textures from the spritesheet
-	shipEntity player(blueShip, Vector3(0.0f, -1.6f, 0.0f), initializer, initializer, 3);
-	player.size.x = blueShip.size * (blueShip.width / blueShip.height);
-	player.size.y = blueShip.size;
 
-	//vector to hold all enemy entities
-	std::vector<shipEntity> enemies;
-	SheetSprite enemySprite(sprites, 424.0f/1024.0f, 0.0f, 324.0f / 1024.0f, 340.0f / 512.0f, 0.3f);
-	for (size_t i = 0; i < 8; i++){
-		shipEntity enemy(enemySprite, Vector3(0.0f, 0.8f, 0.0f), initializer, initializer, 1);  //initializer defined where player ship created
-		enemy.size.x = enemy.sprite.size * (enemy.sprite.width / enemy.sprite.height);  // is this right? ***** times aspect
-		enemy.size.y = enemy.sprite.size;  // is this right? *****
-		enemies.push_back(enemy);
-	}
-
-
-	unsigned char *levelData[LEVEL_HEIGHT][LEVEL_WIDTH];
+	unsigned char levelData[LEVEL_HEIGHT][LEVEL_WIDTH];
 	ifstream stream("double-layer-test.txt");
 
 	//genWorldFromTile(&program, tilesheet, &modelMatrix, &levelData);
 //************************************************************************************************************************
 
-	readLayerData(stream, *levelData);
-	float tile_size = 16;
+	//readLayerData(stream, *levelData);
+
+
+
+	string line;
+	while (getline(stream, line)) {
+		if (line == "") { break; }
+		istringstream sStream(line);
+		string key, value;
+		getline(sStream, key, '=');
+		getline(sStream, value);
+		if (key == "data") {
+			for (int y = 0; y < LEVEL_HEIGHT; y++) {
+				getline(stream, line);
+				istringstream lineStream(line);
+				string tile;
+				for (int x = 0; x < LEVEL_WIDTH; x++) {
+					getline(lineStream, tile, ',');
+					unsigned char val = (unsigned char)atoi(tile.c_str());
+					if (val > 0) {
+						// be careful, the tiles in this format are indexed from 1 not 0
+						levelData[y][x] = val - 1;
+					}
+					else {
+						levelData[y][x] = 0;
+					}
+				}
+			}
+		}
+	}
+
+
+	float tile_size = 0.15;
 	vector<float> vertexData;
 	vector<float> texCoordData;
 	for (int y = 0; y < LEVEL_HEIGHT; y++){
 		for (int x = 0; x < LEVEL_WIDTH; x++){
-			float u = (float)(((int)levelData[y][x]) % SPRITE_COUNT_X) / (float)SPRITE_COUNT_X;
-			float v = (float)(((int)levelData[y][x]) / SPRITE_COUNT_X) / (float)SPRITE_COUNT_Y;
 
-			float spriteWidth = 1.0f / (float)SPRITE_COUNT_X;
-			float spriteHeight = 1.0f / (float)SPRITE_COUNT_Y;
+			if (levelData[y][x] > 0){
+				float u = (float)(((int)levelData[y][x]) % SPRITE_COUNT_X) / (float)SPRITE_COUNT_X;
+				float v = (float)(((int)levelData[y][x]) / SPRITE_COUNT_X) / (float)SPRITE_COUNT_Y;
 
-			vertexData.insert(vertexData.end(), {
+				float spriteWidth = 1.0f / (float)SPRITE_COUNT_X;
+				float spriteHeight = 1.0f / (float)SPRITE_COUNT_Y;
 
-				tile_size * x, -tile_size * y,
-				tile_size * x, (-tile_size * y) - tile_size,
-				(tile_size * x) + tile_size, (-tile_size * y) - tile_size,
+				vertexData.insert(vertexData.end(), {
 
-				tile_size * x, -tile_size * y,
-				(tile_size * x) + tile_size, (-tile_size * y) - tile_size,
-				(tile_size * x) + tile_size, -tile_size * y
-			});
+					tile_size * x, -tile_size * y,
+					tile_size * x, (-tile_size * y) - tile_size,
+					(tile_size * x) + tile_size, (-tile_size * y) - tile_size,
 
-			texCoordData.insert(texCoordData.end(), {
-				u, v,
-				u, v + (spriteHeight),
-				u + spriteWidth, v + (spriteHeight),
+					tile_size * x, -tile_size * y,
+					(tile_size * x) + tile_size, (-tile_size * y) - tile_size,
+					(tile_size * x) + tile_size, -tile_size * y
+				});
 
-				u, v,
-				u + spriteWidth, v + (spriteHeight),
-				u + spriteWidth, v
-			});
+				texCoordData.insert(texCoordData.end(), {
+					u, v,
+					u, v + (spriteHeight),
+					u + spriteWidth, v + (spriteHeight),
+
+					u, v,
+					u + spriteWidth, v + (spriteHeight),
+					u + spriteWidth, v
+				});
+			}
 		}
 	}
 
@@ -411,12 +428,7 @@ int main(int argc, char *argv[])
 
 		float vertices[] = { -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, };
 
-		glVertexAttribPointer(program.positionAttribute, 2, GL_FLOAT, false, 0, vertices);
-		glEnableVertexAttribArray(program.positionAttribute);
 
-		float texCoords[] = { 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0 };
-		glVertexAttribPointer(program.texCoordAttribute, 2, GL_FLOAT, false, 0, texCoords);
-		glEnableVertexAttribArray(program.texCoordAttribute);
 
 		//setting up matrixes
 		program.setModelMatrix(modelMatrix);
@@ -429,27 +441,19 @@ int main(int argc, char *argv[])
 		//*****************************
 
 		glBindTexture(GL_TEXTURE_2D, tilesheet);
-		glVertexAttribPointer(program.positionAttribute, 2, GL_FLOAT, false, 0, &vertexData);
+		glVertexAttribPointer(program.positionAttribute, 2, GL_FLOAT, false, 0, vertexData.data());
 		glEnableVertexAttribArray(program.positionAttribute);
 
-		glVertexAttribPointer(program.texCoordAttribute, 2, GL_FLOAT, false, 0, &texCoordData);
+		glVertexAttribPointer(program.texCoordAttribute, 2, GL_FLOAT, false, 0, texCoordData.data());
 		glEnableVertexAttribArray(program.texCoordAttribute);
 
-		glDrawArrays(GL_TRIANGLES, 0, 600);
-
+		glDrawArrays(GL_TRIANGLES, 0, vertexData.size() / 2);
+		viewMatrix.identity();
+		viewMatrix.Translate(0.0f, 1.2f, 0.0f);
 
 		//*****************************
 
 
-
-
-
-		//drawing the background image
-		glBindTexture(GL_TEXTURE_2D, background);
-		modelMatrix.identity();
-		modelMatrix.Scale(8.0f, 4.5f, 1.0f);
-		program.setModelMatrix(modelMatrix);
-		glDrawArrays(GL_TRIANGLES, 0, 6);
 
 		//drawing the start screen text, if gamestate is set to it
 		if (state == START_SCREEN){
