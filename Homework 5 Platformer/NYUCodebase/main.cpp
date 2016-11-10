@@ -2,7 +2,7 @@
 NAME: Matthew Ricci
 CLASS: CS3113 Homework 5 - Platformer
 NOTES: 
-
+todo list - make start screen, add collisions, ADD FIXED TIMESTEP!!, add collectibles
 */
 
 #ifdef _WINDOWS
@@ -26,11 +26,16 @@ using namespace std;
 #define RESOURCE_FOLDER "NYUCodebase.app/Contents/Resources/"
 #endif
 
-#define LEVEL_HEIGHT 24
-#define LEVEL_WIDTH 150
-#define SPRITE_COUNT_X 24
-#define SPRITE_COUNT_Y 8
+//#define LEVEL_HEIGHT 24
+//#define LEVEL_WIDTH 150
+//#define SPRITE_COUNT_X 24
+//#define SPRITE_COUNT_Y 8
 //#define tile_size 16
+
+#define LEVEL_HEIGHT 35
+#define LEVEL_WIDTH 198
+#define SPRITE_COUNT_X 16
+#define SPRITE_COUNT_Y 8
 
 SDL_Window* displayWindow;
 
@@ -85,8 +90,8 @@ GLuint LoadTexture(const char *image_path){
 	glGenTextures(1, &textureID);
 	glBindTexture(GL_TEXTURE_2D, textureID);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, testTexture->w, testTexture->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, testTexture->pixels);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	SDL_FreeSurface(testTexture);
 	return textureID;
 }
@@ -270,10 +275,12 @@ bool detectCollision(const Entity *a, const Entity *b){
 //}
 
 
+
+
 int main(int argc, char *argv[])
 {
 	SDL_Init(SDL_INIT_VIDEO);
-	displayWindow = SDL_CreateWindow("My Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 360, SDL_WINDOW_OPENGL);
+	displayWindow = SDL_CreateWindow("My Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640*1.5, 360*1.5, SDL_WINDOW_OPENGL);
 	SDL_GLContext context = SDL_GL_CreateContext(displayWindow);
 	SDL_GL_MakeCurrent(displayWindow, context);
 #ifdef _WINDOWS
@@ -287,15 +294,23 @@ int main(int argc, char *argv[])
 	glClearColor(0.0f, 0.525f, 0.988f, 1.0f);
 
 	//texture coordinates
-	glViewport(0, 0, 640, 360);
+	glViewport(0, 0, 640*1.5, 360*1.5);
 	ShaderProgram program(RESOURCE_FOLDER"vertex_textured.glsl", RESOURCE_FOLDER"fragment_textured.glsl");
 	glUseProgram(program.programID);
-	GLuint background = LoadTexture("Space Background.png");
-	GLuint sprites = LoadTexture("sprites.png");
 	GLuint tilesheet = LoadTexture("tilesheet.png");
 	int font = LoadTexture("font.png");
+
+	//for keeping viewMatrix constant and for following player movement  
+	float vm_x = -3.55f;
+	float vm_y = 2.3f;
+
+	GLuint playerTexture = LoadTexture("player.png");
+	SheetSprite playerSprite(playerTexture, 0.0f, 0.0f, 40.0f / 40.0f, 40.0f / 40.0f, 0.5f);
+	Entity player(playerSprite, Vector3(0.5f, -3.42f, 0.0f), Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 0.0f));
+
 	Matrix projectionMatrix;
 	Matrix modelMatrix;
+	Matrix playerModelMatrix;
 	Matrix viewMatrix;
 
 	projectionMatrix.setOrthoProjection(-3.55, 3.55, -2.0f, 2.0f, -1.0f, 1.0f);
@@ -304,8 +319,10 @@ int main(int argc, char *argv[])
 	float lastFrameTicks = 0.0f;
 
 
+
+
 	unsigned char levelData[LEVEL_HEIGHT][LEVEL_WIDTH];
-	ifstream stream("double-layer-test.txt");
+	ifstream stream("only-arne-assets.txt");
 
 	//genWorldFromTile(&program, tilesheet, &modelMatrix, &levelData);
 //************************************************************************************************************************
@@ -315,6 +332,8 @@ int main(int argc, char *argv[])
 
 
 	string line;
+	for (size_t i = 0; i < 10; i++)     //the following 2 lines skip the header, since it is constant
+		getline(stream, line);          //i felt it wasn't necessary to parse the header
 	while (getline(stream, line)) {
 		if (line == "") { break; }
 		istringstream sStream(line);
@@ -342,7 +361,7 @@ int main(int argc, char *argv[])
 	}
 
 
-	float tile_size = 0.15;
+	float tile_size = 0.2;
 	vector<float> vertexData;
 	vector<float> texCoordData;
 	for (int y = 0; y < LEVEL_HEIGHT; y++){
@@ -381,11 +400,6 @@ int main(int argc, char *argv[])
 
 
 //***********************************************************************************
-
-	string first_line = "drggf";
-	string second_line = "fsdgdfg";
-	//creating an object pool for the player's bullets
-
 
 	while (!done) {
 		//for general time-keeping between frames
@@ -436,6 +450,7 @@ int main(int argc, char *argv[])
 		program.setViewMatrix(viewMatrix);
 
 
+		modelMatrix.identity();
 
 
 		//*****************************
@@ -449,20 +464,19 @@ int main(int argc, char *argv[])
 
 		glDrawArrays(GL_TRIANGLES, 0, vertexData.size() / 2);
 		viewMatrix.identity();
-		viewMatrix.Translate(0.0f, 1.2f, 0.0f);
+		viewMatrix.Translate(vm_x, vm_y, 0.0f);
+		program.setViewMatrix(viewMatrix);
 
 		//*****************************
 
-
+		playerModelMatrix.identity();
+		playerModelMatrix.Translate(player.position.x, player.position.y, player.position.z);
+		program.setModelMatrix(playerModelMatrix);
+		player.Draw(&program);
 
 		//drawing the start screen text, if gamestate is set to it
 		if (state == START_SCREEN){
-			modelMatrix.identity();
-			modelMatrix.Translate(-2.7f, 0.5f, 0.0f);
-			drawText(&program, font, first_line, 0.25f, 0.03f, &modelMatrix);
-			modelMatrix.identity();
-			modelMatrix.Translate(-3.05f, 0.0f, 0.0f);
-			drawText(&program, font, second_line, 0.18f, 0.0f, &modelMatrix);
+
 		}
 
 		//drawing the game level, if the gamestate is set to it
