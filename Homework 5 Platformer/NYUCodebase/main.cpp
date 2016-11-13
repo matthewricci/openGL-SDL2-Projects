@@ -36,6 +36,11 @@ using namespace std;
 #define LEVEL_WIDTH 198
 #define SPRITE_COUNT_X 16
 #define SPRITE_COUNT_Y 8
+#define TILE_SIZE 0.2
+#define GRAVITY 0.0
+// 60 FPS (1.0f/60.0f)
+#define FIXED_TIMESTEP 0.0166666f
+#define MAX_TIMESTEPS 6
 
 SDL_Window* displayWindow;
 
@@ -96,46 +101,80 @@ GLuint LoadTexture(const char *image_path){
 	return textureID;
 }
 
-class Vector3 {
-public:
-	Vector3() :x(0.0f), y(0.0f), z(0.0f){}
-	Vector3(float initX, float initY, float initZ) : 
-		x(initX), y(initY), z(initZ){}
+//class Vector3 {
+//public:
+//	Vector3() :x(0.0f), y(0.0f), z(0.0f){}
+//	Vector3(float initX, float initY, float initZ) : 
+//		x(initX), y(initY), z(initZ){}
+//
+//	float x;
+//	float y;
+//	float z;
+//};
 
-	float x;
-	float y;
-	float z;
-};
+//converts two positions (e.g., player.x and player.y) into spots on the tile grid
+void worldToTileCoordinates(float worldX, float worldY, int *gridX, int *gridY) {
+	*gridX = (int)(worldX / TILE_SIZE);
+	*gridY = (int)(-worldY / TILE_SIZE);
+}
 
 //class Entity to give all objects of the game a space to live in the program
 class Entity{
 public:
-	Entity(SheetSprite iSprite, Vector3 iPosition, Vector3 iVelocity, Vector3 iSize) : 
-		sprite(iSprite), position(iPosition), velocity(iVelocity), size(iSize), alive(true){}
+	Entity(SheetSprite iSprite, float iWidth, float iHeight, float iX=0.0f, float iY=0.0f) : 
+		sprite(iSprite), width(iWidth), height(iHeight), x(iX), y(iY),
+	    velocity_x(0.0f), velocity_y(0.0f), acceleration_x(0.0f), acceleration_y(0.0f),
+	    isStatic(false), collidedTop(false), collidedBottom(false), collidedLeft(false), collidedRight(false){}
 	void Draw(ShaderProgram *program){
 		sprite.Draw(program);
 	}
 
-	Vector3 position;
-	Vector3 velocity;
-	Vector3 size;
-	float rotation;
+	//Vector3 position;
+	//Vector3 velocity;
+	//Vector3 size;
+	//float rotation;
+	//SheetSprite sprite;
+	//bool alive;
+
 	SheetSprite sprite;
-	bool alive;
+	float x;
+	float y;
+	float width;
+	float height;
+	float velocity_x;
+	float velocity_y;
+	float acceleration_x;
+	float acceleration_y;
+	bool isStatic;
+	bool collidedTop;
+	bool collidedBottom;
+	bool collidedLeft;
+	bool collidedRight;
 };
 
-class shipEntity : public Entity{
+class playerEnt : public Entity{
 public:
-	shipEntity(SheetSprite iSprite, Vector3 iPosition, Vector3 iVelocity, Vector3 iSize, int iLives) :
-		Entity(iSprite, iPosition, iVelocity, iSize), lives(iLives){}		//copy constructor
+	//playerEnt(SheetSprite iSprite, Vector3 iPosition, Vector3 iVelocity, Vector3 iSize, int iLives) :
+	//	Entity(iSprite, iPosition, iVelocity, iSize), lives(iLives){}		//copy constructor
+	playerEnt(SheetSprite iSprite, float iWidth, float iHeight, int iLives, float iX = 0.0f, float iY = 0.0f) :
+		Entity(iSprite, iWidth, iHeight, iX, iY), lives(iLives){}		//copy constructor
+
+	void Update(float timeElapsed){
+		velocity_y -= GRAVITY * timeElapsed;
+		y += velocity_y * timeElapsed;
+		worldToTileCoordinates(x, y, &gridX, &gridY);
+
+	}
 
 	int lives;
+	int gridX, gridY;
+	
 };
 
 class bulletEntity : public Entity{		//bulletEntity derived class from Entity
 public:
-	bulletEntity(SheetSprite iSprite, Vector3 iPosition, Vector3 iVelocity, Vector3 iSize) : 
-		Entity(iSprite, iPosition, iVelocity, iSize){}		//copy constructor
+	bulletEntity(SheetSprite iSprite, float iWidth, float iHeight, float iX = 0.0f, float iY = 0.0f) :
+		Entity(iSprite, iWidth, iHeight, iX = 0.0f, iY = 0.0f){}		//copy constructor
 	float timeAlive = 0.0f;
 };
 
@@ -184,19 +223,33 @@ void drawText(ShaderProgram *program, int fontTexture, std::string text, float s
 //detects collision via the basic box-to-box algorithm, return true if detected, false otherwise
 bool detectCollision(const Entity *a, const Entity *b){
 			//if a's bottom is higher than b's top, no collision
-	if ((a->position.y - (a->size.y / 2)) > (b->position.y + (b->size.y / 2)))
+	if ((a->y - (a->height / 2)) > (b->y + (b->height / 2)))
 		return false;
 			//if a's top if lower than b's bottom, no collision
-	else if ((a->position.y + (a->size.y / 2)) > (b->position.y - (b->size.y / 2)))
+	else if ((a->y + (a->height / 2)) > (b->y - (b->height / 2)))
 		return false;
 			//if a's left is larger than b's right, no collision
-	else if ((a->position.x - (a->size.x / 2)) > (b->position.x + (b->size.x / 2)))
+	else if ((a->x - (a->width / 2)) > (b->x + (b->width / 2)))
 		return false;
 			//if a's right is smaller than b's left, no collision
-	else if ((a->position.x + (a->size.x / 2)) < (b->position.x - (b->size.x / 2)))
+	else if ((a->x + (a->width / 2)) < (b->x - (b->width / 2)))
 		return false;
 	else
 		return true;
+
+	//if ((a->position.y - (a->size.y / 2)) > (b->position.y + (b->size.y / 2)))
+	//	return false;
+	////if a's top if lower than b's bottom, no collision
+	//else if ((a->position.y + (a->size.y / 2)) > (b->position.y - (b->size.y / 2)))
+	//	return false;
+	////if a's left is larger than b's right, no collision
+	//else if ((a->position.x - (a->size.x / 2)) > (b->position.x + (b->size.x / 2)))
+	//	return false;
+	////if a's right is smaller than b's left, no collision
+	//else if ((a->position.x + (a->size.x / 2)) < (b->position.x - (b->size.x / 2)))
+	//	return false;
+	//else
+	//	return true;
 }
 
 //void genWorldFromTile(ShaderProgram *program, GLuint tilesheet, Matrix *modelMatrix, unsigned char **levelData){
@@ -276,7 +329,6 @@ bool detectCollision(const Entity *a, const Entity *b){
 
 
 
-
 int main(int argc, char *argv[])
 {
 	SDL_Init(SDL_INIT_VIDEO);
@@ -305,9 +357,9 @@ int main(int argc, char *argv[])
 	float vm_y = 2.3f;
 
 	GLuint playerTexture = LoadTexture("player.png");
-	SheetSprite playerSprite(playerTexture, 0.0f, 0.0f, 40.0f / 40.0f, 40.0f / 40.0f, 0.5f);
-	Entity player(playerSprite, Vector3(0.5f, -3.42f, 0.0f), Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 0.0f));
-
+	SheetSprite playerSprite(playerTexture, 0.0f, 0.0f, 40.0f / 40.0f, 40.0f / 40.0f, 0.8f);
+	//playerEnt player(playerSprite, Vector3(0.5f, -3.42f, 0.0f), Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 0.0f), 1);
+	playerEnt player(playerSprite, (playerSprite.size*(playerSprite.width/playerSprite.height)), playerSprite.size, 1, 0.5f, -3.0f);
 	Matrix projectionMatrix;
 	Matrix modelMatrix;
 	Matrix playerModelMatrix;
@@ -413,8 +465,7 @@ int main(int argc, char *argv[])
 				done = true;
 			}
 			else if (event.type == SDL_KEYDOWN){
-				if (state == LEVEL_ONE && event.key.keysym.scancode == SDL_SCANCODE_SPACE){    //press space to shoot
-					
+				if (state == LEVEL_ONE && event.key.keysym.scancode == SDL_SCANCODE_LEFT){    //press space to shoot
 				}
 				else if (state == START_SCREEN && event.key.keysym.scancode == SDL_SCANCODE_SPACE)
 					state = LEVEL_ONE;
@@ -469,8 +520,17 @@ int main(int argc, char *argv[])
 
 		//*****************************
 
+		float fixedElapsed = elapsed;
+		if (fixedElapsed > FIXED_TIMESTEP * MAX_TIMESTEPS) {
+			fixedElapsed = FIXED_TIMESTEP * MAX_TIMESTEPS;
+		}
+		while (fixedElapsed >= FIXED_TIMESTEP) {
+			fixedElapsed -= FIXED_TIMESTEP;
+			player.Update(FIXED_TIMESTEP);
+		}
+		player.Update(fixedElapsed);
 		playerModelMatrix.identity();
-		playerModelMatrix.Translate(player.position.x, player.position.y, player.position.z);
+		playerModelMatrix.Translate(player.x, player.y, 0.0f);
 		program.setModelMatrix(playerModelMatrix);
 		player.Draw(&program);
 
