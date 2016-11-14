@@ -2,7 +2,7 @@
 NAME: Matthew Ricci
 CLASS: CS3113 Homework 5 - Platformer
 NOTES: 
-todo list - condense Update() and Render() fns,  add collisions, add collectibles or an enemy,
+todo list - condense Update() and Render() fns, add collectibles or an enemy,
 			make spikes hurt player, create collision detection for the four corners
 Remaining questions - why do I need to substract values from width and height when player is initialized?
 */
