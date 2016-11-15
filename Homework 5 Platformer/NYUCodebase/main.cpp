@@ -2,9 +2,12 @@
 NAME: Matthew Ricci
 CLASS: CS3113 Homework 5 - Platformer
 NOTES: 
-todo list - condense Update() and Render() fns, add collectibles or an enemy,
-			make spikes hurt player, create collision detection for the four corners
-Remaining questions - why do I need to substract values from width and height when player is initialized?
+Platformer game that involves one player entity and a key entity, which can be collected and will unlock the gate at the end of the level.
+A tilemap is used to generate the terrain in the level.
+
+Unfinished features:
+Spikes were supposed to hurt the player, but I ran out of time for the assignment before completing this feature.
+I wanted the gate at the end to open up with a small animation (the tiles disappear one by one when you hit Q holding the key) but I couldn't get this working before submission time.
 */
 
 #ifdef _WINDOWS
@@ -28,12 +31,6 @@ using namespace std;
 #define RESOURCE_FOLDER "NYUCodebase.app/Contents/Resources/"
 #endif
 
-//#define LEVEL_HEIGHT 24
-//#define LEVEL_WIDTH 150
-//#define SPRITE_COUNT_X 24
-//#define SPRITE_COUNT_Y 8
-//#define tile_size 16
-
 #define LEVEL_HEIGHT 23     //number of rows of tiles (y value)
 #define LEVEL_WIDTH 154     //number of columns of tiles (x value)
 #define SPRITE_COUNT_X 16   //number of columns in the tilesheet
@@ -47,9 +44,6 @@ using namespace std;
 #define TRACKING false      //flag that sets viewMatrix player tracking
 
 SDL_Window* displayWindow;
-
-enum GameState {START_SCREEN, LEVEL_ONE};
-int state;
 
 //class SheetSprite for mapping and storing sprites from a sheet
 class SheetSprite {
@@ -122,7 +116,7 @@ public:
 	Entity(SheetSprite iSprite, float iWidth, float iHeight, float iX=0.0f, float iY=0.0f) : 
 		sprite(iSprite), width(iWidth), height(iHeight), x(iX), y(iY),
 	    velocity_x(0.0f), velocity_y(0.0f), acceleration_x(0.0f), acceleration_y(0.0f),
-	    isStatic(false), collidedTop(false), collidedBottom(false), collidedLeft(false), collidedRight(false){}
+	    collidedTop(false), collidedBottom(false), collidedLeft(false), collidedRight(false){}
 	void Draw(ShaderProgram *program){
 		sprite.Draw(program);
 	}
@@ -150,7 +144,6 @@ public:
 	float velocity_y;
 	float acceleration_x;
 	float acceleration_y;
-	bool isStatic;
 	bool collidedTop;
 	bool collidedBottom;
 	bool collidedLeft;
@@ -161,16 +154,47 @@ public:
 
 class playerEnt : public Entity{
 public:
-	//playerEnt(SheetSprite iSprite, Vector3 iPosition, Vector3 iVelocity, Vector3 iSize, int iLives) :
-	//	Entity(iSprite, iPosition, iVelocity, iSize), lives(iLives){}		//copy constructor
+
 	playerEnt(SheetSprite iSprite, float iWidth, float iHeight, int iLives, float iX = 0.0f, float iY = 0.0f) :
-		Entity(iSprite, iWidth, iHeight, iX, iY), lives(iLives){}		//copy constructor
+		Entity(iSprite, iWidth, iHeight, iX, iY), lives(iLives){}		
 
 	void Update(float timeElapsed, const Uint8 *keys, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]);
+	void ResetPlayer(Matrix *viewMatrix, float vm_x, float vm_y){
+		acceleration_x = 0;
+		acceleration_y = 0;
+		velocity_x = 0;
+		velocity_y = 0;
+		x = 0.5f;
+		y = -3.0f;
+		viewMatrix->identity();
+		viewMatrix->Translate(vm_x, vm_y, 0.0f);
+	}
 
 	int lives;
 	int gridX, gridY;
 	
+};
+
+class keyEnt : public Entity{
+public:
+	keyEnt(SheetSprite iSprite, float iWidth, float iHeight, float iX = 0.0f, float iY = 0.0f) :
+		Entity(iSprite, iWidth, iHeight, iX, iY){}
+
+	void Draw(ShaderProgram *program, Matrix *modelMatrix, float ticks, float playerX){
+		modelMatrix->identity();
+		if (!collected){
+			modelMatrix->Translate(x, y, 0.0f);
+			modelMatrix->Rotate(ticks * 300 * (3.1415926 / 180.0));
+		}
+		else{
+			modelMatrix->Translate(playerX - 3.3f, -0.5f, 0.0f);
+			modelMatrix->Rotate(-45 * (3.1415926 / 180.0));
+		}
+		program->setModelMatrix(*modelMatrix);
+		sprite.Draw(program);
+	}
+
+	bool collected = false;
 };
 
 //detects collision via the basic box-to-box algorithm, return true if detected, false otherwise
@@ -191,11 +215,16 @@ bool detectCollisionTwoEntities(const Entity *a, const Entity *b){
 		return true;
 }
 
+//performs collision checks on several different points all at once for a given entity
 bool detectCollisionEntityAndTiles(playerEnt *ent, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]){
 	float bottom = ent->y - (ent->height / 2);
 	float top = ent->y + (ent->height / 2);       //get float values of all 4 sides of ent
 	float left = ent->x - (ent->width / 2);
 	float right = ent->x + (ent->width / 2);
+	float upper = ent->y + (ent->width / 3);
+	float lower = ent->y - (ent->width / 3);
+
+	//check if bottom is colliding with a solid block
 	worldToTileCoordinates(ent->x, bottom, &ent->gridX, &ent->gridY);  //convert to tile coords
 	if (solidTiles[ent->gridY][ent->gridX] == true){                   //if tile is solid, there is a collision
 		ent->y += ((-TILE_SIZE * ent->gridY) - (ent->y - (ent->height / 2)) - 0.0002f);  //move ent out of collision
@@ -204,24 +233,87 @@ bool detectCollisionEntityAndTiles(playerEnt *ent, const bool solidTiles[LEVEL_H
 		ent->jumping = false;
 	}
 
+	//check if top is colliding with a solid block
 	worldToTileCoordinates(ent->x, top, &ent->gridX, &ent->gridY);
 	if (solidTiles[ent->gridY][ent->gridX] == true){
 		ent->y -= ((ent->y + (ent->height / 2)) - ((-TILE_SIZE * ent->gridY) - TILE_SIZE) + 0.0002f);
 		ent->acceleration_y = 0;
 		ent->velocity_y = 0;
 	}
+	
+	//check if left is colliding with a solid block
 	worldToTileCoordinates(left, ent->y, &ent->gridX, &ent->gridY);
 	if (solidTiles[ent->gridY][ent->gridX] == true){
 		ent->x += (((TILE_SIZE * ent->gridX) + TILE_SIZE) - (ent->x - ent->width / 2) - 0.0002f);
+		//ent->acceleration_x = 0;
+		//ent->velocity_x = 0;
+	}
+
+	//check if right is colliding with a solid block
+	worldToTileCoordinates(right, ent->y, &ent->gridX, &ent->gridY);
+	if (solidTiles[ent->gridY][ent->gridX] == true || solidTiles[ent->gridY+1][ent->gridX] == true){
+		ent->x -= ((ent->x + (ent->width / 2)) - (TILE_SIZE * ent->gridX) + 0.0002f);
 		ent->acceleration_x = 0;
 		ent->velocity_x = 0;
 	}
-	worldToTileCoordinates(right, ent->y, &ent->gridX, &ent->gridY);
+
+	//check if top-right corner is colliding with a solid block
+	worldToTileCoordinates(right, top, &ent->gridX, &ent->gridY);
 	if (solidTiles[ent->gridY][ent->gridX] == true){
 		ent->x -= ((ent->x + (ent->width / 2)) - (TILE_SIZE * ent->gridX) + 0.0002f);
 		ent->acceleration_x = 0;
 		ent->velocity_x = 0;
 	}
+
+	//check if bottom-right corner is colliding with a solid block ----- DOESN'T WORK, COLLIDES WITH GROUND AND SENDS YOU FLYING
+	if (ent->jumping){
+		worldToTileCoordinates(right, bottom, &ent->gridX, &ent->gridY);
+		if (solidTiles[ent->gridY][ent->gridX] == true){
+			ent->x -= ((ent->x + (ent->width / 2)) - (TILE_SIZE * ent->gridX) + 0.002f);
+			ent->acceleration_x = 0;
+			ent->velocity_x = 0;
+		}
+		worldToTileCoordinates(left, bottom, &ent->gridX, &ent->gridY);
+		if (solidTiles[ent->gridY][ent->gridX] == true){
+			ent->x += (((TILE_SIZE * ent->gridX) + TILE_SIZE) - (ent->x - ent->width / 2) - 0.0002f);
+			ent->acceleration_x = 0;
+			ent->velocity_x = 0;
+		}
+	}
+	
+
+	//check if upper-right corner is colliding with a solid block
+	worldToTileCoordinates(right, upper, &ent->gridX, &ent->gridY);
+	if (solidTiles[ent->gridY][ent->gridX] == true){
+		ent->x -= ((ent->x + (ent->width / 2)) - (TILE_SIZE * ent->gridX) + 0.0002f);
+		ent->acceleration_x = 0;
+		ent->velocity_x = 0;
+	}
+
+	//check if lower-right corner is colliding with a solid block
+	worldToTileCoordinates(right, lower, &ent->gridX, &ent->gridY);
+	if (solidTiles[ent->gridY][ent->gridX] == true){
+		ent->x -= ((ent->x + (ent->width / 2)) - (TILE_SIZE * ent->gridX) + 0.0002f);
+		ent->acceleration_x = 0;
+		ent->velocity_x = 0;
+	}
+
+	//check if upper-left corner is colliding with a solid block
+	worldToTileCoordinates(right, upper, &ent->gridX, &ent->gridY);
+	if (solidTiles[ent->gridY][ent->gridX] == true){
+		ent->x += ((ent->x + (ent->width / 2)) - (TILE_SIZE * ent->gridX) + 0.0002f);
+		ent->acceleration_x = 0;
+		ent->velocity_x = 0;
+	}
+
+	//check if lower-left corner is colliding with a solid block
+	worldToTileCoordinates(right, lower, &ent->gridX, &ent->gridY);
+	if (solidTiles[ent->gridY][ent->gridX] == true){
+		ent->x += ((ent->x + (ent->width / 2)) - (TILE_SIZE * ent->gridX) + 0.0002f);
+		ent->acceleration_x = 0;
+		ent->velocity_x = 0;
+	}
+
 	return false;
 }
 
@@ -253,14 +345,6 @@ void playerEnt::Update(float timeElapsed, const Uint8 *keys, const bool solidTil
 
 }
 
-class bulletEntity : public Entity{		//bulletEntity derived class from Entity
-public:
-	bulletEntity(SheetSprite iSprite, float iWidth, float iHeight, float iX = 0.0f, float iY = 0.0f) :
-		Entity(iSprite, iWidth, iHeight, iX = 0.0f, iY = 0.0f){}		//copy constructor
-	float timeAlive = 0.0f;
-};
-
-//loads textures for building
 
 //draws a string to screen given a font sheet and a string
 void drawText(ShaderProgram *program, int fontTexture, std::string text, float size, float spacing, Matrix *modelMatrix) {
@@ -397,6 +481,7 @@ void Render(Matrix *modelMatrix, Matrix *playerModelMatrix){
 
 }
 
+
 int main(int argc, char *argv[])
 {
 	SDL_Init(SDL_INIT_VIDEO);
@@ -426,16 +511,22 @@ int main(int argc, char *argv[])
 
 	//array holding data on solid tile blocks, check against them to see if collision is present
 	bool solidTiles[23][154];
-	for (size_t i = 0; i < 24; i++)
-		solidTiles[18][i] = true;
+
 
 	GLuint playerTexture = LoadTexture("player.png");
 	SheetSprite playerSprite(playerTexture, 0.0f, 0.0f, 40.0f / 40.0f, 40.0f / 40.0f, 0.8f);
-	//playerEnt player(playerSprite, Vector3(0.5f, -3.42f, 0.0f), Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 0.0f), 1);
-	playerEnt player(playerSprite, (playerSprite.size*(playerSprite.width/playerSprite.height)-0.6f), playerSprite.size-0.2f, 1, 0.5f, -3.0f);
-	Matrix projectionMatrix;
+	playerEnt player(playerSprite, (playerSprite.size*(playerSprite.width/playerSprite.height)-0.6f), playerSprite.size-0.2f, 1, 0.5f, -3.0f);  //subtract -0.6f from width and -0.2f from height
+																																				//to size the hitbox to the sprite properly
+	GLuint keyTexture = LoadTexture("key.png");
+	SheetSprite keySprite(tilesheet, 6.0f*16.0f/256.0f, 5.0f*16.0f/128.0f, 16.0f/256.0f, 16.0f/128.0f, 0.4f);
+	keyEnt key(keySprite, keySprite.size*(keySprite.width/keySprite.height), keySprite.size, 10.0f, -3.2f  );
+
+	
+	Matrix projectionMatrix;																													
 	Matrix modelMatrix;
 	Matrix playerModelMatrix;
+	Matrix keyModelMatrix;
+	Matrix fontModelMatrix;
 	Matrix viewMatrix;
 
 	projectionMatrix.setOrthoProjection(-3.55, 3.55, -2.0f, 2.0f, -1.0f, 1.0f);
@@ -443,18 +534,17 @@ int main(int argc, char *argv[])
 	//for keeping time
 	float lastFrameTicks = 0.0f;
 
+	//strings to write
+	string first_line = "Collect the key to open to gate ahead!";
+	string second_line = "press Q with the key to pass through the gate.";
 
+	//determining if player has collected key and hit 'Q' to open the gate
+	bool gateOpened = false;
+	int numTiles = 4;  //4 tiles need to be erased, one at a time, one every quarter of a second, and this helps keep count of when each is erased
 
 
 	unsigned char levelData[LEVEL_HEIGHT][LEVEL_WIDTH];
 	ifstream stream("only-arne-assets.txt");
-
-	//genWorldFromTile(&program, tilesheet, &modelMatrix, &levelData);
-//************************************************************************************************************************
-
-	//readLayerData(stream, *levelData);
-
-
 
 	string line;
 	for (size_t i = 0; i < 10; i++)     //the following 2 lines skip the header, since it is constant
@@ -530,7 +620,6 @@ int main(int argc, char *argv[])
 	viewMatrix.Translate(vm_x, vm_y, 0.0f);
 	program.setViewMatrix(viewMatrix);
 
-//***********************************************************************************
 
 	while (!done) {
 		//for general time-keeping between frames
@@ -544,21 +633,12 @@ int main(int argc, char *argv[])
 				done = true;
 			}
 			else if (event.type == SDL_KEYDOWN){
-				if (state == LEVEL_ONE && event.key.keysym.scancode == SDL_SCANCODE_LEFT){    //press space to shoot
-				}
-				else if (state == START_SCREEN && event.key.keysym.scancode == SDL_SCANCODE_SPACE)
-					state = LEVEL_ONE;
+				if (key.collected && event.key.keysym.scancode == SDL_SCANCODE_Q)
+					gateOpened = true;
 			}
 		}
 
 		const Uint8 *keys = SDL_GetKeyboardState(NULL);
-
-		//if (state == LEVEL_ONE && keys[SDL_SCANCODE_LEFT]){
-		//	
-		//}
-		//if (state == LEVEL_ONE && keys[SDL_SCANCODE_RIGHT]){
-		//	
-		//}
 
 		glClear(GL_COLOR_BUFFER_BIT);
 
@@ -572,12 +652,9 @@ int main(int argc, char *argv[])
 		program.setProjectionMatrix(projectionMatrix);
 		program.setViewMatrix(viewMatrix);
 
-
 		modelMatrix.identity();
 
-
-		//*****************************
-
+		
 		glBindTexture(GL_TEXTURE_2D, tilesheet);
 		glVertexAttribPointer(program.positionAttribute, 2, GL_FLOAT, false, 0, vertexData.data());
 		glEnableVertexAttribArray(program.positionAttribute);
@@ -594,27 +671,39 @@ int main(int argc, char *argv[])
 			program.setViewMatrix(viewMatrix);
 		}
 
-		//*****************************
+		if (player.y < -4.0f)
+			player.ResetPlayer(&viewMatrix, vm_x, vm_y);
 
+		//there are two lines of text outputted to the level - the following renders them both in hardcoded positions on the map
+		fontModelMatrix.identity();
+		fontModelMatrix.Translate(0.4f, -1.75f, 0.0f);
+		program.setModelMatrix(fontModelMatrix);
+		drawText(&program, font, first_line, 0.1f, 0.005f, &fontModelMatrix);
+		fontModelMatrix.Translate(20.0f, 0.0f, 0.0f);
+		program.setModelMatrix(fontModelMatrix);
+		drawText(&program, font, second_line, 0.1f, 0.005f, &fontModelMatrix);
+
+
+		//updates the gamestate using the overarching Update() function and then draws the player based on these updates
 		Update(elapsed, keys, &player, solidTiles);
 		playerModelMatrix.identity();
 		playerModelMatrix.Translate(player.x, player.y, 0.0f);
 		program.setModelMatrix(playerModelMatrix);
 		player.Draw(&program);
 
-		//drawing the start screen text, if gamestate is set to it
-		if (state == START_SCREEN){
+		if (detectCollisionTwoEntities(&player, &key))
+			key.collected = true;
 
+		key.Draw(&program, &keyModelMatrix, ticks, player.x );
+
+		if (gateOpened){
+			if (numTiles == 0) gateOpened = false;
+			else{
+				solidTiles[13+numTiles][128] = false;
+				numTiles--;
+
+			}
 		}
-
-		//drawing the game level, if the gamestate is set to it
-		else {
-			//draw the score in the bottom-left corner
-			modelMatrix.identity();
-		
-				
-		}
-
 
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
