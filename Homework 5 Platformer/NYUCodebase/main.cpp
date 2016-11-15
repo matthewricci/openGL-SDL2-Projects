@@ -517,7 +517,6 @@ int main(int argc, char *argv[])
 	SheetSprite playerSprite(playerTexture, 0.0f, 0.0f, 40.0f / 40.0f, 40.0f / 40.0f, 0.8f);
 	playerEnt player(playerSprite, (playerSprite.size*(playerSprite.width/playerSprite.height)-0.6f), playerSprite.size-0.2f, 1, 0.5f, -3.0f);  //subtract -0.6f from width and -0.2f from height
 																																				//to size the hitbox to the sprite properly
-	GLuint keyTexture = LoadTexture("key.png");
 	SheetSprite keySprite(tilesheet, 6.0f*16.0f/256.0f, 5.0f*16.0f/128.0f, 16.0f/256.0f, 16.0f/128.0f, 0.4f);
 	keyEnt key(keySprite, keySprite.size*(keySprite.width/keySprite.height), keySprite.size, 10.0f, -3.2f  );
 
