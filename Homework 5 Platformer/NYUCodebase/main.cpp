@@ -5,6 +5,8 @@ NOTES:
 Platformer game that involves one player entity and a key entity, which can be collected and will unlock the gate at the end of the level.
 A tilemap is used to generate the terrain in the level.
 
+EXTRA CREDIT: Added background music on repeat, a jump sound, and a collect-key sound to this project
+
 Unfinished features:
 Spikes were supposed to hurt the player, but I ran out of time for the assignment before completing this feature.
 I wanted the gate at the end to open up with a small animation (the tiles disappear one by one when you hit Q holding the key) but I couldn't get this working before submission time.
@@ -23,6 +25,7 @@ I wanted the gate at the end to open up with a small animation (the tiles disapp
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <SDL_mixer.h>
 using namespace std;
 
 #ifdef _WINDOWS
@@ -44,6 +47,11 @@ using namespace std;
 #define TRACKING false      //flag that sets viewMatrix player tracking
 
 SDL_Window* displayWindow;
+
+//global vars containing sounds used in-game, they are global vars so that class functions (e.g., Update) can access and play them
+Mix_Chunk *keySound;
+Mix_Chunk *jumpSound;
+Mix_Music *music;
 
 //class SheetSprite for mapping and storing sprites from a sheet
 class SheetSprite {
@@ -127,13 +135,6 @@ public:
 		collidedLeft = false;
 		collidedRight = false;
 	}
-
-	//Vector3 position;
-	//Vector3 velocity;
-	//Vector3 size;
-	//float rotation;
-	//SheetSprite sprite;
-	//bool alive;
 
 	SheetSprite sprite;
 	float x;
@@ -322,6 +323,7 @@ void playerEnt::Update(float timeElapsed, const Uint8 *keys, const bool solidTil
 	if (keys != NULL && jumping == false && keys[SDL_SCANCODE_SPACE]){
 		velocity_y = 3.25f;
 		jumping = true;
+		Mix_PlayChannel(-1, jumpSound, 0);
 	}
 	if (x < 0.1f){
 		x = 0.1f;
@@ -619,6 +621,12 @@ int main(int argc, char *argv[])
 	viewMatrix.Translate(vm_x, vm_y, 0.0f);
 	program.setViewMatrix(viewMatrix);
 
+	
+	//SOUND EXTRA-CREDIT ADDITIONS
+	Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 4096);   //created audio buffer and sets a frequency and 2 channels for sound
+	keySound = Mix_LoadWAV("key.wav");        //loads sounds
+	jumpSound = Mix_LoadWAV("jump.wav");	  //loads sounds
+	music = Mix_LoadMUS("ac_1200.mid");		  //loads music	Mix_PlayMusic(music, -1);				  //plays music file on infinite loop (-1)
 
 	while (!done) {
 		//for general time-keeping between frames
@@ -632,8 +640,10 @@ int main(int argc, char *argv[])
 				done = true;
 			}
 			else if (event.type == SDL_KEYDOWN){
-				if (key.collected && event.key.keysym.scancode == SDL_SCANCODE_Q)
+				if (key.collected && event.key.keysym.scancode == SDL_SCANCODE_Q && player.x > 20.0f){
 					gateOpened = true;
+					Mix_PlayChannel(-1, keySound, 0);
+				}
 			}
 		}
 
@@ -690,8 +700,12 @@ int main(int argc, char *argv[])
 		program.setModelMatrix(playerModelMatrix);
 		player.Draw(&program);
 
-		if (detectCollisionTwoEntities(&player, &key))
-			key.collected = true;
+		if (detectCollisionTwoEntities(&player, &key)){
+			if (!key.collected){
+				key.collected = true;
+				Mix_PlayChannel(-1, keySound, 0);
+			}
+		}
 
 		key.Draw(&program, &keyModelMatrix, ticks, player.x );
 
@@ -714,6 +728,9 @@ int main(int argc, char *argv[])
 		SDL_GL_SwapWindow(displayWindow);
 
 	}
+	Mix_FreeChunk(keySound);
+	Mix_FreeChunk(jumpSound);
+	Mix_FreeMusic(music);
 	SDL_Quit();
 	return 0;
 }
