@@ -106,6 +106,13 @@ float lerp(float v0, float v1, float t) {
 	return (1.0 - t)*v0 + t*v1;
 }
 
+class Vector{
+public:
+	float x;
+	float y;
+
+};
+
 //converts two positions (e.g., player.x and player.y) into spots on the tile grid
 
 //class Entity to give all objects of the game a space to live in the program
@@ -113,7 +120,7 @@ class Entity{
 public:
 	Entity(SheetSprite iSprite, float iWidth, float iHeight, float iX=0.0f, float iY=0.0f) : 
 		sprite(iSprite), width(iWidth), height(iHeight), x(iX), y(iY),
-	    velocity_x(0.0f), velocity_y(0.0f), acceleration_x(0.0f), acceleration_y(0.0f),
+	    velocity_x(0.0f), velocity_y(0.0f),
 	    collidedTop(false), collidedBottom(false), collidedLeft(false), collidedRight(false){}
 	void Draw(ShaderProgram *program){
 		sprite.Draw(program);
@@ -126,6 +133,27 @@ public:
 		collidedRight = false;
 	}
 
+	void Update(float elapsed){
+		x += velocity_x * elapsed;
+		if (x > 3.25f){
+			x = 3.23f;
+			velocity_x *= -1;
+		}
+		else if (x < -3.25f){
+			x = -3.23f;
+			velocity_x *= -1;
+		}
+		y += velocity_y * elapsed;
+		if (y > 1.98f){
+			y = 1.96f;
+			velocity_y *= -1;
+		}
+		else if (y < -1.98f){
+			y = -1.96f;
+			velocity_y *= -1;
+		}
+	}
+
 	SheetSprite sprite;
 	float x;
 	float y;
@@ -133,13 +161,11 @@ public:
 	float height;
 	float velocity_x;
 	float velocity_y;
-	float acceleration_x;
-	float acceleration_y;
+	float rotation = 100.0f;
 	bool collidedTop;
 	bool collidedBottom;
 	bool collidedLeft;
 	bool collidedRight;
-	bool jumping;      //used to test if player is currently jumping
 };
 
 
@@ -160,11 +186,6 @@ bool detectCollisionTwoEntities(const Entity *a, const Entity *b){
 	else
 		return true;
 }
-
-//performs collision checks on several different points all at once for a given entity
-
-
-
 
 
 //draws a string to screen given a font sheet and a string
@@ -211,23 +232,26 @@ void drawText(ShaderProgram *program, int fontTexture, std::string text, float s
 
 
 //updates the entire gamestate for all entities
-void Update(float timeElapsed){
+void Update(float timeElapsed, Entity *white1, Entity *white2, Entity *white3){
 	float fixedElapsed = timeElapsed;
 	if (fixedElapsed > FIXED_TIMESTEP * MAX_TIMESTEPS) {
 		fixedElapsed = FIXED_TIMESTEP * MAX_TIMESTEPS;
 	}
 	while (fixedElapsed >= FIXED_TIMESTEP) {
 		fixedElapsed -= FIXED_TIMESTEP;
-		//player->Update(FIXED_TIMESTEP, keys, solidTiles);
+		white1->Update(FIXED_TIMESTEP);
+		white2->Update(FIXED_TIMESTEP);
+		white3->Update(FIXED_TIMESTEP);
 	}
-	//player->Update(fixedElapsed, keys, solidTiles);
+	white1->Update(fixedElapsed);
+	white2->Update(fixedElapsed);
+	white3->Update(fixedElapsed);
 }
 
 //renders entire gamestate (should be called AFTER all Update() calls
 void Render(Matrix *modelMatrix, Matrix *playerModelMatrix){
 
 }
-
 
 bool testSATSeparationForEdge(float edgeX, float edgeY, const std::vector<Vector> &points1, const std::vector<Vector> &points2) {
 	float normalX = -edgeY;
@@ -326,14 +350,23 @@ int main(int argc, char *argv[])
 	glUseProgram(program.programID);
 
 
-	GLuint playerTexture = LoadTexture("player.png");
-	SheetSprite playerSprite(playerTexture, 0.0f, 0.0f, 40.0f / 40.0f, 40.0f / 40.0f, 0.8f);
-	//playerEnt player(playerSprite, (playerSprite.size*(playerSprite.width/playerSprite.height)-0.6f), playerSprite.size-0.2f, 1, 0.5f, -3.0f);  //subtract -0.6f from width and -0.2f from height
-																																				//to size the hitbox to the sprite properly
-
+	GLuint whiteTexture = LoadTexture("white.png");
+	SheetSprite whiteSprite(whiteTexture, 0.0f, 0.0f, 40.0f / 40.0f, 40.0f / 40.0f, 0.8f);
+	Entity white1(whiteSprite, (whiteSprite.size*(whiteSprite.width/whiteSprite.height)-0.6f), whiteSprite.size-0.2f, 0.0f, 0.0f);
+	Entity white2(whiteSprite, (whiteSprite.size*(whiteSprite.width / whiteSprite.height) - 0.6f), whiteSprite.size - 0.0f, 0.0f);
+	Entity white3(whiteSprite, (whiteSprite.size*(whiteSprite.width / whiteSprite.height) - 0.6f), whiteSprite.size - 0.0f, 0.0f);
+	white1.velocity_x = -1.0f;
+	white1.velocity_y = 1.0f;
+	white2.velocity_x = 2.0f;
+	white2.velocity_y = 0.5f;
+	white3.velocity_x = 0.8f;
+	white3.velocity_y = -1.2f;
 	
 	Matrix projectionMatrix;																													
 	Matrix modelMatrix;
+	Matrix white1ModelMatrix;
+	Matrix white2ModelMatrix;
+	Matrix white3ModelMatrix;
 	Matrix viewMatrix;
 
 	projectionMatrix.setOrthoProjection(-3.55, 3.55, -2.0f, 2.0f, -1.0f, 1.0f);
@@ -370,8 +403,22 @@ int main(int argc, char *argv[])
 		program.setProjectionMatrix(projectionMatrix);
 		program.setViewMatrix(viewMatrix);
 
-		modelMatrix.identity();
+		//updates the entire game (all three white boxes) every frame
+		Update(elapsed, &white1, &white2, &white3);
 
+		white1ModelMatrix.identity();
+		white1ModelMatrix.Translate(white1.x, white1.y, 0.0f);
+		program.setModelMatrix(white1ModelMatrix);
+		white1.Draw(&program);
+		white2ModelMatrix.identity();
+		white2ModelMatrix.Translate(white2.x, white2.y, 0.0);
+		program.setModelMatrix(white2ModelMatrix);
+		white2.Draw(&program);
+		white3ModelMatrix.identity();
+		white3ModelMatrix.Translate(white3.x, white3.y, 0.0f);						//follow TSR
+		white3ModelMatrix.Rotate(ticks * white3.rotation * (3.1415926 / 180.0));
+		program.setModelMatrix(white3ModelMatrix);
+		white3.Draw(&program);
 		
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
