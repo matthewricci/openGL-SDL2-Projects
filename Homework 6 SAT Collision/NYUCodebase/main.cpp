@@ -3,7 +3,12 @@ NAME: Matthew Ricci
 CLASS: CS3113 Homework 6 - SAT Collision Demo
 NOTES: This demo has three objects, white1 white2 white3, all from the same sprite, that are being scaled/rotated/translated at different rates.
 The SAT algorithm checks collision for each set of edges for each object on each run of the Update() function.
-reversing the rotation during Update() makes things wonky
+Explaining the circles in the corners: To test my collision, I have the program render four circles, one at each world-space coordinate for an object, to visualize how the collision is working.
+Undefined behavior:
+	Reversing the rotation after detecting a collision in Update() makes things wonky.
+	I had to reverse the += and -= operators when moving objects away from one another after a detected collision (code edited from Week10 Class1 slide 52)
+		otherwise the objects would suck each other up and meld together.
+	Unfortunately, I could not get rotation working too well. Scale works (albeit it is a little janky) but rotation will do some strange things that I wasn't able to fix as of yet.
 */
 
 #ifdef _WINDOWS
@@ -97,9 +102,19 @@ float lerp(float v0, float v1, float t) {
 
 class Vector{
 public:
+	Vector(float iX=0.0f, float iY=0.0f, float iZ=0.0f) : x(iX), y(iY), z(iZ){}
+
+	//uses pythagorean theorem to find the length of a vector
+	float length(){
+		return sqrt(x*x + y*y);
+	}
+	void normalize(){
+		x /= length();
+		y /= length();
+	}
 	float x;
 	float y;
-	float z = 0.0f;
+	float z;
 
 };
 
@@ -177,11 +192,19 @@ bool checkSATCollision(const std::vector<Vector> &e1Points, const std::vector<Ve
 	return true;
 }
 
+//Vector convertToWorldCoords(Matrix transformations, Vector objCoords){
+//	Vector worldCoords;
+//	worldCoords.x = ( (transformations.m[0][0] * objCoords.x) + (transformations.m[0][1] * objCoords.y) + (transformations.m[0][2] * objCoords.z) );
+//	worldCoords.y = ( (transformations.m[1][0] * objCoords.x) + (transformations.m[1][1] * objCoords.y) + (transformations.m[1][2] * objCoords.z) );
+//	worldCoords.z = ( (transformations.m[2][0] * objCoords.x) + (transformations.m[2][1] * objCoords.y) + (transformations.m[2][2] * objCoords.z) );
+//	return worldCoords;
+//}
+
 Vector convertToWorldCoords(Matrix transformations, Vector objCoords){
 	Vector worldCoords;
-	worldCoords.x = ( (transformations.m[0][0] * objCoords.x) + (transformations.m[0][1] * objCoords.y) + (transformations.m[0][2] * objCoords.z) );
-	worldCoords.y = ( (transformations.m[1][0] * objCoords.x) + (transformations.m[1][1] * objCoords.y) + (transformations.m[1][2] * objCoords.z) );
-	worldCoords.z = ( (transformations.m[2][0] * objCoords.x) + (transformations.m[2][1] * objCoords.y) + (transformations.m[2][2] * objCoords.z) );
+	worldCoords.x = ((transformations.m[0][0] * objCoords.x) + (transformations.m[1][0] * objCoords.y) + (transformations.m[3][0] * objCoords.z));
+	worldCoords.y = ((transformations.m[0][1] * objCoords.x) + (transformations.m[1][1] * objCoords.y) + (transformations.m[3][1] * objCoords.z));
+	worldCoords.z = ((transformations.m[2][0] * objCoords.x) + (transformations.m[2][1] * objCoords.y) + (transformations.m[2][2] * objCoords.z));
 	return worldCoords;
 }
 
@@ -284,96 +307,158 @@ void Update(float timeElapsed, Entity *white1, Entity *white2, Entity *white3,
 	if (fixedElapsed > FIXED_TIMESTEP * MAX_TIMESTEPS) {
 		fixedElapsed = FIXED_TIMESTEP * MAX_TIMESTEPS;
 	}
+
+	int maxChecks = 10;
 	//dividing elapsed time into fixed updates
 	while (fixedElapsed >= FIXED_TIMESTEP) {
 		fixedElapsed -= FIXED_TIMESTEP;
 		white1->Update(FIXED_TIMESTEP, white1Matrix);
 		white2->Update(FIXED_TIMESTEP, white2Matrix);
 		white3->Update(FIXED_TIMESTEP, white3Matrix);
+
+		
 		if (checkSATCollision(white1->epoints, white2->epoints)){
-			//if white1 is to the left of white 2
-			if (white1->x < white2->x){
-				white1->x -= 0.01f;
-				white2->x += 0.01f;
-			}
-			else {
-				white1->x += 0.01f;
-				white2->x -= 0.01f;
-			}
-			//if white1 is below white2
-			if (white1->y < white2->y){
-				white1->y -= 0.01f;
-				white2->y += 0.01f;
-			}
-			else {
-				white1->y += 0.01f;
-				white2->y -= 0.01f;
-			}
-			//reverse velocities
 			white1->velocity_x *= -1;
 			white1->velocity_y *= -1;
 			white2->velocity_x *= -1;
 			white2->velocity_y *= -1;
+			maxChecks = 10;
+		}
+		while (checkSATCollision(white1->epoints, white2->epoints) && maxChecks > 0) {
+			Vector responseVector = Vector(white1->x - white2->x, white1->y - white2->y);
+			responseVector.normalize();
+			white1->x += responseVector.x * 0.002;
+			white1->y += responseVector.y * 0.002;
+
+			white2->x -= responseVector.x * 0.002;
+			white2->y -= responseVector.y * 0.002;
+			maxChecks -= 1;
+		}
+
+		//if (checkSATCollision(white1->epoints, white2->epoints)){
+		//	//if white1 is to the left of white 2
+		//	if (white1->x < white2->x){
+		//		white1->x -= 0.01f;
+		//		white2->x += 0.01f;
+		//	}
+		//	else {
+		//		white1->x += 0.01f;
+		//		white2->x -= 0.01f;
+		//	}
+		//	//if white1 is below white2
+		//	if (white1->y < white2->y){
+		//		white1->y -= 0.01f;
+		//		white2->y += 0.01f;
+		//	}
+		//	else {
+		//		white1->y += 0.01f;
+		//		white2->y -= 0.01f;
+		//	}
+
+			//reverse velocities
+		//white1->velocity_x *= -1;
+		//white1->velocity_y *= -1;
+		//white2->velocity_x *= -1;
+		//white2->velocity_y *= -1;
 			//reverse direction of rotatation
 			//white1->rotation *= -1;
 			//	white2->rotation *= -1;
-		}
+		//}
+
 		if (checkSATCollision(white1->epoints, white3->epoints)){
-			//if white1 is to the left of white 3
-			if (white1->x < white3->x){
-				white1->x -= 0.01f;
-				white3->x += 0.01f;
-			}
-			else {
-				white1->x += 0.01f;
-				white3->x -= 0.01f;
-			}
-			//if white1 is below white3
-			if (white1->y < white3->y){
-				white1->y -= 0.01f;
-				white3->y += 0.01f;
-			}
-			else {
-				white1->y += 0.01f;
-				white3->y -= 0.01f;
-			}
-			//reverse velocities
 			white1->velocity_x *= -1;
 			white1->velocity_y *= -1;
 			white3->velocity_x *= -1;
 			white3->velocity_y *= -1;
+			maxChecks = 10;
+		}
+		while (checkSATCollision(white1->epoints, white3->epoints) && maxChecks > 0) {
+			Vector responseVector = Vector(white1->x - white3->x, white1->y - white3->y);
+			responseVector.normalize();
+			white1->x += responseVector.x * 0.002;
+			white1->y += responseVector.y * 0.002;
+
+			white3->x -= responseVector.x * 0.002;
+			white3->y -= responseVector.y * 0.002;
+			maxChecks -= 1;
+		}
+
+
+		//if (checkSATCollision(white1->epoints, white3->epoints)){
+		//	//if white1 is to the left of white 3
+		//	if (white1->x < white3->x){
+		//		white1->x -= 0.01f;
+		//		white3->x += 0.01f;
+		//	}
+		//	else {
+		//		white1->x += 0.01f;
+		//		white3->x -= 0.01f;
+		//	}
+		//	//if white1 is below white3
+		//	if (white1->y < white3->y){
+		//		white1->y -= 0.01f;
+		//		white3->y += 0.01f;
+		//	}
+		//	else {
+		//		white1->y += 0.01f;
+		//		white3->y -= 0.01f;
+		//	}
+			//reverse velocities
+			//white1->velocity_x *= -1;
+			//white1->velocity_y *= -1;
+			//white3->velocity_x *= -1;
+			//white3->velocity_y *= -1;
 			//reverse direction of rotatation
 			//	white1->rotation *= -1;
 			//white3->rotation *= -1;
-		}
+		//}
+		
 		if (checkSATCollision(white2->epoints, white3->epoints)){
-			//if white2 is to the left of white3
-			if (white2->x < white3->x){
-				white2->x -= 0.01f;
-				white3->x += 0.01f;
-			}
-			else {
-				white2->x += 0.01f;
-				white3->x -= 0.01f;
-			}
-			//if white2 is below white3
-			if (white2->y < white3->y){
-				white2->y -= 0.01f;
-				white3->y += 0.01f;
-			}
-			else {
-				white2->y += 0.01f;
-				white3->y -= 0.01f;
-			}
-			//reverse velocities
 			white2->velocity_x *= -1;
 			white2->velocity_y *= -1;
 			white3->velocity_x *= -1;
 			white3->velocity_y *= -1;
-			//reverse direction of rotatation
-			//		white2->rotation *= -1;
-			//white3->rotation *= -1;
+			maxChecks = 10;
 		}
+		while (checkSATCollision(white2->epoints, white3->epoints) && maxChecks > 0) {
+			Vector responseVector = Vector(white2->x - white3->x, white2->y - white3->y);
+			responseVector.normalize();
+			white2->x += responseVector.x * 0.002;
+			white2->y += responseVector.y * 0.002;
+
+			white3->x -= responseVector.x * 0.002;
+			white3->y -= responseVector.y * 0.002;
+			maxChecks -= 1;
+		}
+		
+		//if (checkSATCollision(white2->epoints, white3->epoints)){
+		//	//if white2 is to the left of white3
+		//	if (white2->x < white3->x){
+		//		white2->x -= 0.01f;
+		//		white3->x += 0.01f;
+		//	}
+		//	else {
+		//		white2->x += 0.01f;
+		//		white3->x -= 0.01f;
+		//	}
+		//	//if white2 is below white3
+		//	if (white2->y < white3->y){
+		//		white2->y -= 0.01f;
+		//		white3->y += 0.01f;
+		//	}
+		//	else {
+		//		white2->y += 0.01f;
+		//		white3->y -= 0.01f;
+		//	}
+		//	//reverse velocities
+		//	white2->velocity_x *= -1;
+		//	white2->velocity_y *= -1;
+		//	white3->velocity_x *= -1;
+		//	white3->velocity_y *= -1;
+		//	//reverse direction of rotatation
+		//	//		white2->rotation *= -1;
+		//	//white3->rotation *= -1;
+		//}
 	}
 
 	//one more round of updates to finish out left-over elapsed time
@@ -381,90 +466,146 @@ void Update(float timeElapsed, Entity *white1, Entity *white2, Entity *white3,
 	white2->Update(fixedElapsed, white2Matrix);
 	white3->Update(fixedElapsed, white3Matrix);
 
+
 	if (checkSATCollision(white1->epoints, white2->epoints)){
-		//if white1 is to the left of white 2
-		if (white1->x < white2->x){
-			white1->x -= 0.01f;
-			white2->x += 0.01f;
-		}
-		else {
-			white1->x += 0.01f;
-			white2->x -= 0.01f;
-		}
-		//if white1 is below white2
-		if (white1->y < white2->y){
-			white1->y -= 0.01f;
-			white2->y += 0.01f;
-		}
-		else {
-			white1->y += 0.01f;
-			white2->y -= 0.01f;
-		}
-		//reverse velocities
 		white1->velocity_x *= -1;
 		white1->velocity_y *= -1;
 		white2->velocity_x *= -1;
 		white2->velocity_y *= -1;
-		//reverse direction of rotatation
-		//white1->rotation *= -1;
-	//	white2->rotation *= -1;
+		maxChecks = 10;
 	}
+	while (checkSATCollision(white1->epoints, white2->epoints) && maxChecks > 0) {
+		Vector responseVector = Vector(white1->x - white2->x, white1->y - white2->y);
+		responseVector.normalize();
+		white1->x += responseVector.x * 0.002;
+		white1->y += responseVector.y * 0.002;
+
+		white2->x -= responseVector.x * 0.002;
+		white2->y -= responseVector.y * 0.002;
+		maxChecks -= 1;
+	}
+
 	if (checkSATCollision(white1->epoints, white3->epoints)){
-		//if white1 is to the left of white 3
-		if (white1->x < white3->x){
-			white1->x -= 0.01f;
-			white3->x += 0.01f;
-		}
-		else {
-			white1->x += 0.01f;
-			white3->x -= 0.01f;
-		}
-		//if white1 is below white3
-		if (white1->y < white3->y){
-			white1->y -= 0.01f;
-			white3->y += 0.01f;
-		}
-		else {
-			white1->y += 0.01f;
-			white3->y -= 0.01f;
-		}
-		//reverse velocities
 		white1->velocity_x *= -1;
 		white1->velocity_y *= -1;
 		white3->velocity_x *= -1;
 		white3->velocity_y *= -1;
-		//reverse direction of rotatation
-	//	white1->rotation *= -1;
-		//white3->rotation *= -1;
+		maxChecks = 10;
 	}
+	while (checkSATCollision(white1->epoints, white3->epoints) && maxChecks > 0) {
+		Vector responseVector = Vector(white1->x - white3->x, white1->y - white3->y);
+		responseVector.normalize();
+		white1->x += responseVector.x * 0.002;
+		white1->y += responseVector.y * 0.002;
+
+		white3->x -= responseVector.x * 0.002;
+		white3->y -= responseVector.y * 0.002;
+		maxChecks -= 1;
+	}
+
 	if (checkSATCollision(white2->epoints, white3->epoints)){
-		//if white2 is to the left of white3
-		if (white2->x < white3->x){
-			white2->x -= 0.01f;
-			white3->x += 0.01f;
-		}
-		else {
-			white2->x += 0.01f;
-			white3->x -= 0.01f;
-		}
-		//if white2 is below white3
-		if (white2->y < white3->y){
-			white2->y -= 0.01f;
-			white3->y += 0.01f;
-		}
-		else {
-			white2->y += 0.01f;
-			white3->y -= 0.01f;
-		}
-		//reverse velocities
 		white2->velocity_x *= -1;
 		white2->velocity_y *= -1;
 		white3->velocity_x *= -1;
 		white3->velocity_y *= -1;
-		//reverse direction of rotatation
-//		white2->rotation *= -1;
-		//white3->rotation *= -1;
+		maxChecks = 10;
 	}
+	while (checkSATCollision(white2->epoints, white3->epoints) && maxChecks > 0) {
+		Vector responseVector = Vector(white2->x - white3->x, white2->y - white3->y);
+		responseVector.normalize();
+		white2->x += responseVector.x * 0.002;
+		white2->y -= responseVector.y * 0.002;
+
+		white3->x -= responseVector.x * 0.002;
+		white3->y -= responseVector.y * 0.002;
+		maxChecks -= 1;
+	}
+
+
+//	if (checkSATCollision(white1->epoints, white2->epoints)){
+//		//if white1 is to the left of white 2
+//		if (white1->x < white2->x){
+//			white1->x -= 0.01f;
+//			white2->x += 0.01f;
+//		}
+//		else {
+//			white1->x += 0.01f;
+//			white2->x -= 0.01f;
+//		}
+//		//if white1 is below white2
+//		if (white1->y < white2->y){
+//			white1->y -= 0.01f;
+//			white2->y += 0.01f;
+//		}
+//		else {
+//			white1->y += 0.01f;
+//			white2->y -= 0.01f;
+//		}
+//		//reverse velocities
+//		white1->velocity_x *= -1;
+//		white1->velocity_y *= -1;
+//		white2->velocity_x *= -1;
+//		white2->velocity_y *= -1;
+//		//reverse direction of rotatation
+//		//white1->rotation *= -1;
+//	//	white2->rotation *= -1;
+//	}
+//	if (checkSATCollision(white1->epoints, white3->epoints)){
+//		//if white1 is to the left of white 3
+//		if (white1->x < white3->x){
+//			white1->x -= 0.01f;
+//			white3->x += 0.01f;
+//		}
+//		else {
+//			white1->x += 0.01f;
+//			white3->x -= 0.01f;
+//		}
+//		//if white1 is below white3
+//		if (white1->y < white3->y){
+//			white1->y -= 0.01f;
+//			white3->y += 0.01f;
+//		}
+//		else {
+//			white1->y += 0.01f;
+//			white3->y -= 0.01f;
+//		}
+//		//reverse velocities
+//		white1->velocity_x *= -1;
+//		white1->velocity_y *= -1;
+//		white3->velocity_x *= -1;
+//		white3->velocity_y *= -1;
+//		//reverse direction of rotatation
+//	//	white1->rotation *= -1;
+//		//white3->rotation *= -1;
+//	}
+//	if (checkSATCollision(white2->epoints, white3->epoints)){
+//		//if white2 is to the left of white3
+//		if (white2->x < white3->x){
+//			white2->x -= 0.01f;
+//			white3->x += 0.01f;
+//		}
+//		else {
+//			white2->x += 0.01f;
+//			white3->x -= 0.01f;
+//		}
+//		//if white2 is below white3
+//		if (white2->y < white3->y){
+//			white2->y -= 0.01f;
+//			white3->y += 0.01f;
+//		}
+//		else {
+//			white2->y += 0.01f;
+//			white3->y -= 0.01f;
+//		}
+//		//reverse velocities
+//		white2->velocity_x *= -1;
+//		white2->velocity_y *= -1;
+//		white3->velocity_x *= -1;
+//		white3->velocity_y *= -1;
+//		//reverse direction of rotatation
+////		white2->rotation *= -1;
+//		//white3->rotation *= -1;
+//	}
 }
 
 //renders entire gamestate (should be called AFTER all Update() calls
@@ -496,8 +637,8 @@ int main(int argc, char *argv[])
 	ShaderProgram program(RESOURCE_FOLDER"vertex_textured.glsl", RESOURCE_FOLDER"fragment_textured.glsl");
 	glUseProgram(program.programID);
 
-	GLuint testTexture = LoadTexture("player.png");
-	SheetSprite test(testTexture, 0.0f, 0.0f, 1.0f, 1.0f, 0.2f);
+	GLuint testTexture = LoadTexture("circle.png");
+	SheetSprite test(testTexture, 0.0f, 0.0f, 1.0f, 1.0f, 0.1f);
 	GLuint white1Texture = LoadTexture("white1.png");
 	GLuint white2Texture = LoadTexture("white2.png");
 	GLuint white3Texture = LoadTexture("white3.png");
@@ -506,9 +647,9 @@ int main(int argc, char *argv[])
 	SheetSprite white1Sprite(white1Texture, 0.0f, 0.0f, 40.0f / 40.0f, 40.0f / 40.0f, 0.8f);
 	SheetSprite white2Sprite(white2Texture, 0.0f, 0.0f, 40.0f / 40.0f, 40.0f / 40.0f, 0.8f);
 	SheetSprite white3Sprite(white3Texture, 0.0f, 0.0f, 40.0f / 40.0f, 40.0f / 40.0f, 0.8f);
-	Entity white1(white1Sprite, (white1Sprite.size*(white1Sprite.width / white1Sprite.height)), white1Sprite.size, 0.0f, 0.0f);
+	Entity white1(white1Sprite, (white1Sprite.size*(white1Sprite.width / white1Sprite.height)), white1Sprite.size, -1.5f, -1.0f);
 	Entity white2(white2Sprite, (white2Sprite.size*(white2Sprite.width / white2Sprite.height)), white2Sprite.size, 0.0f, 0.0f);
-	Entity white3(white3Sprite, (white3Sprite.size*(white3Sprite.width / white3Sprite.height)), white3Sprite.size, 0.0f, 0.0f);
+	Entity white3(white3Sprite, (white3Sprite.size*(white3Sprite.width / white3Sprite.height)), white3Sprite.size, 1.5f, 1.0f);
 	white1.velocity_x = -1.0f;
 	white1.velocity_y = 1.0f;
 	white2.velocity_x = 2.0f;
@@ -563,17 +704,19 @@ int main(int argc, char *argv[])
 		white1ModelMatrix.identity();
 		//white1ModelMatrix.Translate(white1.x, white1.y, 0.0f);
 		//white1ModelMatrix.Rotate(ticks * white1.rotation * (3.1415926 / 180.0));
+		white1ModelMatrix.Translate(white1.epoints[0].x+(white1.width/2), white1.epoints[0].y-(white1.height/2), 0.0f);
 		white1ModelMatrix.Scale(2.0f, 0.3f, 1.0f);
-		white1ModelMatrix.Translate(white1.x, white1.y, 0.0f);
+		//white1ModelMatrix.Rotate(white1.rotation * (3.1415926 / 180.0));
 		program.setModelMatrix(white1ModelMatrix);
 		white1.Draw(&program);
 		white2ModelMatrix.identity();
-		white2ModelMatrix.Translate(white2.x, white2.y, 0.0);
+		white2ModelMatrix.Translate(white2.epoints[0].x + (white2.width / 2), white2.epoints[0].y - (white2.height / 2), 0.0f);
 		//white2ModelMatrix.Rotate(ticks * white2.rotation * (3.1415926 / 180.0));
 		program.setModelMatrix(white2ModelMatrix);
 		white2.Draw(&program);
 		white3ModelMatrix.identity();
-		white3ModelMatrix.Translate(white3.x, white3.y, 0.0f);						//follow TSR
+		white3ModelMatrix.Translate(white3.epoints[0].x + (white3.width / 2), white3.epoints[0].y - (white3.height / 2), 0.0f);  //follow TSR
+		//commented out because rotation breaks everything
 		//white3ModelMatrix.Rotate(white3.rotation * (3.1415926 / 180.0));
 		program.setModelMatrix(white3ModelMatrix);
 		white3.Draw(&program);
@@ -581,6 +724,13 @@ int main(int argc, char *argv[])
 		for (size_t i = 0; i < white1.epoints.size(); i++){
 			modelMatrix.identity();
 			modelMatrix.Translate(white1.epoints[i].x, white1.epoints[i].y, white1.epoints[i].z);
+			program.setModelMatrix(modelMatrix);
+			test.Draw(&program);
+		}
+
+		for (size_t i = 0; i < white1.epoints.size(); i++){
+			modelMatrix.identity();
+			modelMatrix.Translate(white2.epoints[i].x, white2.epoints[i].y, white2.epoints[i].z);
 			program.setModelMatrix(modelMatrix);
 			test.Draw(&program);
 		}
