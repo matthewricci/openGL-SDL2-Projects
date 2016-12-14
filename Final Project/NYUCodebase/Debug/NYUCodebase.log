@@ -1,35 +1,37 @@
-﻿Build started 12/6/2016 2:37:32 PM.
+﻿Build started 12/14/2016 1:58:27 PM.
      1>Project "C:\Users\crush_000\Documents\Matthew-Ricci-CS3113\Final Project\NYUCodebase\NYUCodebase.vcxproj" on node 2 (Build target(s)).
      1>C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V120\Microsoft.CppBuild.targets(388,5): warning MSB8028: The intermediate directory (Debug\) contains files shared from another project (Class Template2.vcxproj, class_template3.vcxproj).  This can lead to incorrect clean and rebuild behavior.
      1>ClCompile:
          C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /IC:\SDL2\include /IC:\SDL2_image\include /IC:\glew\include /IC:\SDL2_mixer\include /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _WINDOWS /D _MBCS /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt main.cpp
          main.cpp
      1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(109): warning C4244: 'return' : conversion from 'double' to 'float', possible loss of data
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(185): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(189): warning C4305: 'argument' : truncation from 'double' to 'float'
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(228): warning C4244: '+=' : conversion from 'double' to 'float', possible loss of data
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(237): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(245): warning C4244: '+=' : conversion from 'double' to 'float', possible loss of data
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(253): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(261): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(270): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(276): warning C4244: '+=' : conversion from 'double' to 'float', possible loss of data
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(286): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(294): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(302): warning C4244: '+=' : conversion from 'double' to 'float', possible loss of data
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(310): warning C4244: '+=' : conversion from 'double' to 'float', possible loss of data
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(354): warning C4018: '<' : signed/unsigned mismatch
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(487): warning C4244: 'argument' : conversion from 'double' to 'int', possible loss of data
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(505): warning C4244: 'argument' : conversion from 'double' to 'GLsizei', possible loss of data
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(537): warning C4305: 'argument' : truncation from 'double' to 'float'
-     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(586): warning C4305: 'initializing' : truncation from 'double' to 'float'
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(191): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(195): warning C4305: 'argument' : truncation from 'double' to 'float'
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(234): warning C4244: '+=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(243): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(251): warning C4244: '+=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(259): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(267): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(276): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(282): warning C4244: '+=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(292): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(300): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(308): warning C4244: '+=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(316): warning C4244: '+=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(363): warning C4018: '<' : signed/unsigned mismatch
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(420): warning C4244: 'argument' : conversion from 'double' to 'int', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(438): warning C4244: 'argument' : conversion from 'double' to 'GLsizei', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(471): warning C4305: 'argument' : truncation from 'double' to 'float'
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(524): warning C4305: 'initializing' : truncation from 'double' to 'float'
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\final project\nyucodebase\main.cpp(478): warning C4101: 'textElapsed' : unreferenced local variable
        Link:
          C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\crush_000\Documents\Matthew-Ricci-CS3113\Final Project\Debug\NYUCodebase.exe" /INCREMENTAL /NOLOGO /LIBPATH:C:\SDL2_mixer\lib\x86 /LIBPATH:C:\SDL2\lib\x86 /LIBPATH:C:\SDL2_image\lib\x86 /LIBPATH:C:\glew\lib\Release\Win32 SDL2.lib SDL2_mixer.lib glew32.lib SDL2main.lib SDL2_image.lib OpenGL32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\crush_000\Documents\Matthew-Ricci-CS3113\Final Project\Debug\NYUCodebase.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\crush_000\Documents\Matthew-Ricci-CS3113\Final Project\Debug\NYUCodebase.lib" /MACHINE:X86 Debug\main.obj
          Debug\Matrix.obj
          Debug\ShaderProgram.obj
+     1>MSVCRTD.lib(cinitexe.obj) : warning LNK4098: defaultlib 'msvcrt.lib' conflicts with use of other libs; use /NODEFAULTLIB:library
          NYUCodebase.vcxproj -> C:\Users\crush_000\Documents\Matthew-Ricci-CS3113\Final Project\Debug\NYUCodebase.exe
      1>Done Building Project "C:\Users\crush_000\Documents\Matthew-Ricci-CS3113\Final Project\NYUCodebase\NYUCodebase.vcxproj" (Build target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:03.92
+Time Elapsed 00:00:04.71

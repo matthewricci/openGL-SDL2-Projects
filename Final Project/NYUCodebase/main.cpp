@@ -33,7 +33,7 @@ using namespace std;
 #define SPRITE_COUNT_X 14   //number of columns in the tilesheet
 #define SPRITE_COUNT_Y 16    //number of rows in the tilesheet
 #define TILE_SIZE 0.2
-#define GRAVITY 0          //counteracts jumping velocity
+//#define GRAVITY 5          //counteracts jumping velocity
 #define FRICTION 10
 // 60 FPS (1.0f/60.0f)
 #define FIXED_TIMESTEP 0.0166666f
@@ -171,6 +171,12 @@ public:
 	int lives;
 	int gridX, gridY;
 
+};
+
+class enemyEnt : public Entity{
+public:
+	enemyEnt(SheetSprite iSprite, float iWidth, float iHeight, int iLives, float iX = 0.0f, float iY = 0.0f) :
+		Entity(iSprite, iWidth, iHeight, iX, iY) {}
 };
 
 class keyEnt : public Entity{
@@ -317,18 +323,16 @@ bool detectCollisionEntityAndTiles(playerEnt *ent, const bool solidTiles[LEVEL_H
 
 
 void playerEnt::Update(float timeElapsed, const Uint8 *keys, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]){
-	if (keys != NULL && jumping == false && keys[SDL_SCANCODE_SPACE]){
-		velocity_y = 3.25f;
-		jumping = true;
-		Mix_PlayChannel(-1, jumpSound, 0);
+	if (keys != NULL && keys[SDL_SCANCODE_UP]){
+		acceleration_y = 18.5f;
 	}
-	if (x < 0.1f){
-		x = 0.1f;
-		acceleration_x = 0.0f;
-		velocity_x = 0.0f;
+	else if (keys != NULL && keys[SDL_SCANCODE_DOWN]){
+		acceleration_y = -18.5f;
 	}
-	acceleration_y -= GRAVITY * timeElapsed;
+	else acceleration_y = 0;
+
 	velocity_y += acceleration_y * timeElapsed;
+	velocity_y = lerp(velocity_y, 0.0f, FRICTION * timeElapsed);
 	y += velocity_y * timeElapsed;
 	detectCollisionEntityAndTiles(this, solidTiles);
 	if (keys != NULL && keys[SDL_SCANCODE_LEFT]){
@@ -341,6 +345,7 @@ void playerEnt::Update(float timeElapsed, const Uint8 *keys, const bool solidTil
 	velocity_x += acceleration_x * timeElapsed;
 	velocity_x = lerp(velocity_x, 0.0f, FRICTION * timeElapsed);
 	x += velocity_x * timeElapsed;
+	detectCollisionEntityAndTiles(this, solidTiles);
 
 }
 
@@ -351,7 +356,12 @@ void drawText(ShaderProgram *program, int fontTexture, std::string text, float s
 	std::vector<float> vertexData;
 	std::vector<float> texCoordData;
 
+//	int numChars = (int)(elapsed / slowness);  //elapsed == how long since the text first started printing, slowness == how fast each char should be printed
+//	if (numChars > text.size())         //as "slowness" value decreases, chars are printed faster 
+//		numChars = text.size();         //if numChars is greater than the amount of chars in string, just print the size of the string
+
 	for (int i = 0; i < text.size(); i++) {
+//	for (int i = 0; i < numChars-1; i++) {
 		float texture_x = (float)(((int)text[i]) % 16) / 16.0f;
 		float texture_y = (float)(((int)text[i]) / 16) / 16.0f;
 		vertexData.insert(vertexData.end(), {
@@ -384,83 +394,6 @@ void drawText(ShaderProgram *program, int fontTexture, std::string text, float s
 	glDisableVertexAttribArray(program->positionAttribute);
 	glDisableVertexAttribArray(program->texCoordAttribute);
 }
-
-
-
-//void genWorldFromTile(ShaderProgram *program, GLuint tilesheet, Matrix *modelMatrix, unsigned char **levelData){
-//	float tile_size = 16;
-//	vector<float> vertexData;
-//	vector<float> texCoordData;
-//	for (int y = 0; y < LEVEL_HEIGHT; y++){
-//		for (int x = 0; x < LEVEL_WIDTH; x++){
-//			float u = (float)(((int)levelData[y][x]) % SPRITE_COUNT_X) / (float)SPRITE_COUNT_X;
-//			float v = (float)(((int)levelData[y][x]) / SPRITE_COUNT_X) / (float)SPRITE_COUNT_Y;
-//
-//			float spriteWidth = 1.0f / (float)SPRITE_COUNT_X;
-//			float spriteHeight = 1.0f / (float)SPRITE_COUNT_Y;
-//
-//			vertexData.insert(vertexData.end(), {
-//
-//				tile_size * x, -tile_size * y,
-//				tile_size * x, (-tile_size * y) - tile_size,
-//				(tile_size * x) + tile_size, (-tile_size * y) - tile_size,
-//
-//				tile_size * x, -tile_size * y,
-//				(tile_size * x) + tile_size, (-tile_size * y) - tile_size,
-//				(tile_size * x) + tile_size, -tile_size * y
-//			});
-//
-//			texCoordData.insert(texCoordData.end(), {
-//				u, v,
-//				u, v + (spriteHeight),
-//				u + spriteWidth, v + (spriteHeight),
-//
-//				u, v,
-//				u + spriteWidth, v + (spriteHeight),
-//				u + spriteWidth, v
-//			});
-//		}
-//	}
-//	glBindTexture(GL_TEXTURE_2D, tilesheet);
-//	glVertexAttribPointer(program->positionAttribute, 2, GL_FLOAT, false, 0, &vertexData);
-//	glEnableVertexAttribArray(program->positionAttribute);
-//
-//	glVertexAttribPointer(program->texCoordAttribute, 2, GL_FLOAT, false, 0, &texCoordData);
-//	glEnableVertexAttribArray(program->texCoordAttribute);
-//
-//	glDrawArrays(GL_TRIANGLES, 0, 600);
-//
-//}
-
-//bool readLayerData(std::ifstream &stream, unsigned char **levelData) {
-//	string line;
-//	while (getline(stream, line)) {
-//		if (line == "") { break; }
-//		istringstream sStream(line);
-//		string key, value;
-//		getline(sStream, key, '=');
-//		getline(sStream, value);
-//		if (key == "data") {
-//			for (int y = 0; y < LEVEL_HEIGHT; y++) {
-//				getline(stream, line);
-//				istringstream lineStream(line);
-//				string tile;
-//				for (int x = 0; x < LEVEL_WIDTH; x++) {
-//					getline(lineStream, tile, ',');
-//					unsigned char val = (unsigned char)atoi(tile.c_str());
-//					if (val > 0) {
-//						// be careful, the tiles in this format are indexed from 1 not 0
-//						levelData[y][x] = val - 1;
-//					}
-//					else {
-//						levelData[y][x] = 0;
-//					}
-//				}
-//			}
-//		}
-//	}
-//	return true;
-//}
 
 //updates the entire gamestate for all entities
 void Update(float timeElapsed, const Uint8 *keys, playerEnt *player, bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]){
@@ -521,6 +454,7 @@ int main(int argc, char *argv[])
 	SheetSprite menuArt(menuArtTexture, 0.0f, 0.0f, 1.0f, 1.0f, 2.8f);
 	GLuint playerTexture = LoadTexture("AstronautTest.png");
 	SheetSprite playerSprite(playerTexture, 0.0f, 0.0f, 40.0f / 40.0f, 40.0f / 40.0f, 0.4f);
+	GLuint textBoxTexture = LoadTexture("textBox.png");
 	playerEnt player(playerSprite, (playerSprite.size*(playerSprite.width / playerSprite.height) - 0.6f), playerSprite.size - 0.2f, 1, 0.5f, -3.0f);  //subtract -0.6f from width and -0.2f from height
 	//to size the hitbox to the sprite properly
 	SheetSprite keySprite(tilesheet, 6.0f*16.0f / 256.0f, 5.0f*16.0f / 128.0f, 16.0f / 256.0f, 16.0f / 128.0f, 0.4f);
@@ -538,6 +472,10 @@ int main(int argc, char *argv[])
 
 	//for keeping time
 	float lastFrameTicks = 0.0f;
+
+	//for writing text via a scrolling animation
+	int numChars = 0;
+	float textElapsed;
 
 	//strings to write
 	string first_line = "Title card! This is a menu.";
@@ -649,7 +587,7 @@ int main(int argc, char *argv[])
 					state = LEVEL_ONE;
 			else if (event.type == SDL_KEYDOWN){
 				if (event.key.keysym.scancode == SDL_SCANCODE_UP){
-					player.velocity_y += 100.0f;
+					player.y += 100.0f;
 				}
 				else if (event.key.keysym.scancode == SDL_SCANCODE_DOWN){
 					player.velocity_y -= 100.0f;
@@ -702,10 +640,10 @@ int main(int argc, char *argv[])
 			fontModelMatrix.identity();
 			fontModelMatrix.Translate(0.4f, -1.75f, 0.0f);
 			program.setModelMatrix(fontModelMatrix);
-			drawText(&program, font, first_line, 0.1f, 0.005f, &fontModelMatrix);
+			//drawText(&program, font, first_line, 0.1f, 0.005f, &fontModelMatrix, elapsed, 0.1);
 			fontModelMatrix.Translate(20.0f, 0.0f, 0.0f);
 			program.setModelMatrix(fontModelMatrix);
-			drawText(&program, font, second_line, 0.1f, 0.005f, &fontModelMatrix);
+			//drawText(&program, font, second_line, 0.1f, 0.005f, &fontModelMatrix, elapsed, 0.1);
 
 
 			//updates the gamestate using the overarching Update() function and then draws the player based on these updates
@@ -737,11 +675,11 @@ int main(int argc, char *argv[])
 
 		else{
 			modelMatrix.identity();
-			modelMatrix.Scale(2.3f, 5.8f, 1.0f);
-			modelMatrix.Translate(2.65f, -0.25f, 0.0f);			
+			//modelMatrix.Scale(2.3f, 5.8f, 1.0f);
+			//modelMatrix.Translate(2.65f, -0.25f, 0.0f);			
 			//border on bottom side
-			//modelMatrix.Scale(2.3f, 5.3f, 1.0f);
-			//modelMatrix.Translate(2.7f, -0.25f, 0.0f);
+			modelMatrix.Scale(2.3f, 5.3f, 1.0f);
+			modelMatrix.Translate(2.7f, -0.25f, 0.0f);
 			//border on right and bottom sides
 			//modelMatrix.Scale(2.0f, 5.0f, 1.0f);
 			//modelMatrix.Translate(3.0f, -0.25f, 0.0f);
@@ -751,6 +689,8 @@ int main(int argc, char *argv[])
 
 			fontModelMatrix.identity();
 			fontModelMatrix.Translate(0.4f, -1.75f, 0.0f);
+			glBindTexture(GL_TEXTURE_2D, textBoxTexture);
+			glDrawArrays(GL_TRIANGLES, 0, 6);
 			drawText(&program, font, first_line, 0.1f, 0.0f, &fontModelMatrix);
 			//playerModelMatrix.identity();
 			//playerModelMatrix.Scale(0.7f, 1.0f, 1.0f);
