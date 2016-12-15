@@ -1,22 +1,42 @@
-﻿Build started 12/6/2016 11:49:53 PM.
-     1>Project "C:\Users\Matt\Documents\Matthew-Ricci-CS3113\Homework 6 SAT Collision\NYUCodebase\NYUCodebase.vcxproj" on node 2 (Build target(s)).
+﻿Build started 12/15/2016 10:09:44 AM.
+     1>Project "C:\Users\crush_000\Documents\Matthew-Ricci-CS3113\Homework 6 SAT Collision\NYUCodebase\NYUCodebase.vcxproj" on node 2 (Build target(s)).
      1>C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V120\Microsoft.CppBuild.targets(388,5): warning MSB8028: The intermediate directory (Debug\) contains files shared from another project (Class Template2.vcxproj, class_template3.vcxproj).  This can lead to incorrect clean and rebuild behavior.
      1>ClCompile:
          C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /IC:\SDL2\include /IC:\SDL2_image\include /IC:\glew\include /IC:\SDL2_mixer\include /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _WINDOWS /D _MBCS /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt main.cpp
          main.cpp
-     1>c:\users\matt\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(112): warning C4244: 'return' : conversion from 'double' to 'float', possible loss of data
-     1>c:\users\matt\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(182): warning C4018: '<' : signed/unsigned mismatch
-     1>c:\users\matt\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(241): warning C4244: 'argument' : conversion from 'double' to 'int', possible loss of data
-     1>c:\users\matt\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(255): warning C4244: 'argument' : conversion from 'double' to 'GLsizei', possible loss of data
-     1>c:\users\matt\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(270): warning C4305: 'argument' : truncation from 'double' to 'float'
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(100): warning C4244: 'return' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(132): warning C4018: '<' : signed/unsigned mismatch
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(135): warning C4018: '<' : signed/unsigned mismatch
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(148): warning C4244: 'initializing' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(149): warning C4244: 'initializing' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(151): warning C4244: 'initializing' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(160): warning C4018: '<' : signed/unsigned mismatch
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(177): warning C4018: '<' : signed/unsigned mismatch
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(316): warning C4244: '+=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(317): warning C4244: '+=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(319): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(320): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(336): warning C4244: '+=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(337): warning C4244: '+=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(339): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(340): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(356): warning C4244: '+=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(357): warning C4244: '+=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(359): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(360): warning C4244: '-=' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(400): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(407): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(415): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(431): warning C4244: 'argument' : conversion from 'double' to 'int', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(445): warning C4244: 'argument' : conversion from 'double' to 'GLsizei', possible loss of data
+     1>c:\users\crush_000\documents\matthew-ricci-cs3113\homework 6 sat collision\nyucodebase\main.cpp(476): warning C4305: 'argument' : truncation from 'double' to 'float'
        Link:
-         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Matt\Documents\Matthew-Ricci-CS3113\Homework 6 SAT Collision\Debug\NYUCodebase.exe" /INCREMENTAL /NOLOGO /LIBPATH:C:\SDL2_mixer\lib\x86 /LIBPATH:C:\SDL2\lib\x86 /LIBPATH:C:\SDL2_image\lib\x86 /LIBPATH:C:\glew\lib\Release\Win32 SDL2.lib SDL2_mixer.lib glew32.lib SDL2main.lib SDL2_image.lib OpenGL32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\Matt\Documents\Matthew-Ricci-CS3113\Homework 6 SAT Collision\Debug\NYUCodebase.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Matt\Documents\Matthew-Ricci-CS3113\Homework 6 SAT Collision\Debug\NYUCodebase.lib" /MACHINE:X86 Debug\main.obj
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\crush_000\Documents\Matthew-Ricci-CS3113\Homework 6 SAT Collision\Debug\NYUCodebase.exe" /INCREMENTAL /NOLOGO /LIBPATH:C:\SDL2_mixer\lib\x86 /LIBPATH:C:\SDL2\lib\x86 /LIBPATH:C:\SDL2_image\lib\x86 /LIBPATH:C:\glew\lib\Release\Win32 SDL2.lib SDL2_mixer.lib glew32.lib SDL2main.lib SDL2_image.lib OpenGL32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\crush_000\Documents\Matthew-Ricci-CS3113\Homework 6 SAT Collision\Debug\NYUCodebase.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\crush_000\Documents\Matthew-Ricci-CS3113\Homework 6 SAT Collision\Debug\NYUCodebase.lib" /MACHINE:X86 Debug\main.obj
          Debug\Matrix.obj
          Debug\ShaderProgram.obj
-     1>MSVCRTD.lib(cinitexe.obj) : warning LNK4098: defaultlib 'msvcrt.lib' conflicts with use of other libs; use /NODEFAULTLIB:library
-         NYUCodebase.vcxproj -> C:\Users\Matt\Documents\Matthew-Ricci-CS3113\Homework 6 SAT Collision\Debug\NYUCodebase.exe
-     1>Done Building Project "C:\Users\Matt\Documents\Matthew-Ricci-CS3113\Homework 6 SAT Collision\NYUCodebase\NYUCodebase.vcxproj" (Build target(s)).
+         NYUCodebase.vcxproj -> C:\Users\crush_000\Documents\Matthew-Ricci-CS3113\Homework 6 SAT Collision\Debug\NYUCodebase.exe
+     1>Done Building Project "C:\Users\crush_000\Documents\Matthew-Ricci-CS3113\Homework 6 SAT Collision\NYUCodebase\NYUCodebase.vcxproj" (Build target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:00.94
+Time Elapsed 00:00:05.43
