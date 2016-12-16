@@ -324,10 +324,10 @@ bool detectCollisionEntityAndTiles(playerEnt *ent, const bool solidTiles[LEVEL_H
 
 void playerEnt::Update(float timeElapsed, const Uint8 *keys, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]){
 	if (keys != NULL && keys[SDL_SCANCODE_UP]){
-		acceleration_y = 18.5f;
+		acceleration_y = 7.5f;
 	}
 	else if (keys != NULL && keys[SDL_SCANCODE_DOWN]){
-		acceleration_y = -18.5f;
+		acceleration_y = -7.5f;
 	}
 	else acceleration_y = 0;
 
@@ -336,12 +336,13 @@ void playerEnt::Update(float timeElapsed, const Uint8 *keys, const bool solidTil
 	y += velocity_y * timeElapsed;
 	detectCollisionEntityAndTiles(this, solidTiles);
 	if (keys != NULL && keys[SDL_SCANCODE_LEFT]){
-		acceleration_x = -18.5f;
+		acceleration_x = -10.5f;
 	}
 	else if (keys != NULL && keys[SDL_SCANCODE_RIGHT]){
-		acceleration_x = 18.5f;
+		acceleration_x = 10.5f;
 	}
 	else acceleration_x = 0;
+
 	velocity_x += acceleration_x * timeElapsed;
 	velocity_x = lerp(velocity_x, 0.0f, FRICTION * timeElapsed);
 	x += velocity_x * timeElapsed;
@@ -393,6 +394,37 @@ void drawText(ShaderProgram *program, int fontTexture, std::string text, float s
 
 	glDisableVertexAttribArray(program->positionAttribute);
 	glDisableVertexAttribArray(program->texCoordAttribute);
+}
+
+void drawTextBox(ShaderProgram *program, GLuint textBoxTexture, GLuint fontTexture, Matrix &boxModelMatrix, Matrix &fontModelMatrix, std::string text, float size, float spacing, float x, float y){
+	
+	glBindTexture(GL_TEXTURE_2D, textBoxTexture);
+
+	boxModelMatrix.identity();
+	boxModelMatrix.Translate(x, y-1.5f, 0.0f);
+	boxModelMatrix.Scale(7.0f, 1.0f, 1.0f);
+	program->setModelMatrix(boxModelMatrix);
+
+	float vertices[] = { -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, };
+
+	glVertexAttribPointer(program->positionAttribute, 2, GL_FLOAT, false, 0, vertices);
+	glEnableVertexAttribArray(program->positionAttribute);
+
+	float texCoords[] = { 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0 };
+	glVertexAttribPointer(program->texCoordAttribute, 2, GL_FLOAT, false, 0, texCoords);
+	glEnableVertexAttribArray(program->texCoordAttribute);
+
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	
+	fontModelMatrix.identity();
+	fontModelMatrix.Translate(x-2.5f, y-1.4f, 0.0f);
+	drawText(program, fontTexture, text, size, spacing, &fontModelMatrix);
+
+	//regardless of the above text, this will always draw the hint string near the bottom-middle of the text box
+	std::string hint = "- Press space to continue - ";
+	fontModelMatrix.identity();
+	fontModelMatrix.Translate(x - 1.55f, y - 1.7f, 0.0f);
+	drawText(program, fontTexture, hint, 0.1, spacing, &fontModelMatrix);
 }
 
 //updates the entire gamestate for all entities
@@ -455,7 +487,7 @@ int main(int argc, char *argv[])
 	GLuint playerTexture = LoadTexture("AstronautTest.png");
 	SheetSprite playerSprite(playerTexture, 0.0f, 0.0f, 40.0f / 40.0f, 40.0f / 40.0f, 0.4f);
 	GLuint textBoxTexture = LoadTexture("textBox.png");
-	playerEnt player(playerSprite, (playerSprite.size*(playerSprite.width / playerSprite.height) - 0.6f), playerSprite.size - 0.2f, 1, 0.5f, -3.0f);  //subtract -0.6f from width and -0.2f from height
+	playerEnt player(playerSprite, (playerSprite.size*(playerSprite.width / playerSprite.height) - 0.6f), playerSprite.size - 0.2f, 1, 0.5f, -3.55f);  //subtract -0.6f from width and -0.2f from height
 	//to size the hitbox to the sprite properly
 	SheetSprite keySprite(tilesheet, 6.0f*16.0f / 256.0f, 5.0f*16.0f / 128.0f, 16.0f / 256.0f, 16.0f / 128.0f, 0.4f);
 	keyEnt key(keySprite, keySprite.size*(keySprite.width / keySprite.height), keySprite.size, 10.0f, -3.2f);
@@ -464,7 +496,7 @@ int main(int argc, char *argv[])
 	Matrix projectionMatrix;
 	Matrix modelMatrix;
 	Matrix playerModelMatrix;
-	Matrix keyModelMatrix;
+	Matrix boxModelMatrix;
 	Matrix fontModelMatrix;
 	Matrix viewMatrix;
 
@@ -626,51 +658,28 @@ int main(int argc, char *argv[])
 
 			glDrawArrays(GL_TRIANGLES, 0, vertexData.size() / 2);
 
+
 			//update the viewMatrix to track
-			if (player.x > -vm_x){
 				viewMatrix.identity();
-				viewMatrix.Translate(-player.x, vm_y, 0.0f);
+				viewMatrix.Translate(-player.x, -player.y, 0.0f);
 				program.setViewMatrix(viewMatrix);
-			}
+			
 
 			if (player.y < -4.0f)
 				player.ResetPlayer(&viewMatrix, vm_x, vm_y);
 
-			//there are two lines of text outputted to the level - the following renders them both in hardcoded positions on the map
-			fontModelMatrix.identity();
-			fontModelMatrix.Translate(0.4f, -1.75f, 0.0f);
-			program.setModelMatrix(fontModelMatrix);
-			//drawText(&program, font, first_line, 0.1f, 0.005f, &fontModelMatrix, elapsed, 0.1);
-			fontModelMatrix.Translate(20.0f, 0.0f, 0.0f);
-			program.setModelMatrix(fontModelMatrix);
-			//drawText(&program, font, second_line, 0.1f, 0.005f, &fontModelMatrix, elapsed, 0.1);
-
-
 			//updates the gamestate using the overarching Update() function and then draws the player based on these updates
 			Update(elapsed, keys, &player, solidTiles);
 			playerModelMatrix.identity();
-			playerModelMatrix.Scale(0.5f, 1.0f, 1.0f);
+			//playerModelMatrix.Scale(0.5f, 1.0f, 1.0f);
 			playerModelMatrix.Translate(player.x, player.y, 0.0f);
 			program.setModelMatrix(playerModelMatrix);
-			player.Draw(&program);
+			//player.Draw(&program);
 
-			if (detectCollisionTwoEntities(&player, &key)){
-				if (!key.collected){
-					key.collected = true;
-					Mix_PlayChannel(-1, keySound, 0);
-				}
-			}
 
-			key.Draw(&program, &keyModelMatrix, ticks, player.x);
+			drawTextBox(&program, textBoxTexture, font, boxModelMatrix, fontModelMatrix, first_line, 0.15, 0.0, player.x, player.y);
 
-			if (gateOpened){
-				if (numTiles == 0) gateOpened = false;
-				else{
-					solidTiles[13 + numTiles][128] = false;
-					numTiles--;
 
-				}
-			}
 		}
 
 		else{
@@ -690,6 +699,7 @@ int main(int argc, char *argv[])
 			fontModelMatrix.identity();
 			fontModelMatrix.Translate(0.4f, -1.75f, 0.0f);
 			glBindTexture(GL_TEXTURE_2D, textBoxTexture);
+			program.setModelMatrix(fontModelMatrix);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
 			drawText(&program, font, first_line, 0.1f, 0.0f, &fontModelMatrix);
 			//playerModelMatrix.identity();
