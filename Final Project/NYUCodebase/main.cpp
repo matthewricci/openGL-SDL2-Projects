@@ -2,7 +2,7 @@
 NAME: Matthew Ricci
 Assignment: CS3113 Final Project
 NOTES:
-
+use a library/linked list/something else to make a dialogue tree and store each dialogue's starting x position
 
 */
 
@@ -43,6 +43,7 @@ using namespace std;
 SDL_Window* displayWindow;
 
 enum GameState { START_SCREEN, LEVEL_ONE, LEVEL_TWO, BATTLE };
+enum SpriteDirection { LEFT, RIGHT };
 int state;
 
 //global vars containing sounds used in-game, they are global vars so that class functions (e.g., Update) can access and play them
@@ -55,7 +56,7 @@ class SheetSprite {
 public:
 	SheetSprite(unsigned int initTextureID, float initU, float initV, float initWidth, float initHeight, float initSize) :
 		textureID(initTextureID), u(initU), v(initV), width(initWidth), height(initHeight), size(initSize){}
-	void Draw(ShaderProgram *program){
+	void Draw(ShaderProgram *program, SpriteDirection direction=RIGHT){
 		glBindTexture(GL_TEXTURE_2D, textureID);
 
 		GLfloat texCoords[] = {
@@ -67,16 +68,28 @@ public:
 			u + width, v + height
 		};
 		float aspect = width / height;
-		float vertices[] = {
-			-0.5f * size * aspect, -0.5f * size,
-			0.5f * size * aspect, 0.5f * size,
-			-0.5f * size * aspect, 0.5f * size,
-			0.5f * size * aspect, 0.5f * size,
-			-0.5f * size * aspect, -0.5f * size,
-			0.5f * size * aspect, -0.5f * size };
-
-		glVertexAttribPointer(program->positionAttribute, 2, GL_FLOAT, false, 0, vertices);
-		glEnableVertexAttribArray(program->positionAttribute);
+		if (direction == RIGHT){
+			float vertices[] = {
+				-0.5f * size * aspect, -0.5f * size,
+				0.5f * size * aspect, 0.5f * size,
+				-0.5f * size * aspect, 0.5f * size,
+				0.5f * size * aspect, 0.5f * size,
+				-0.5f * size * aspect, -0.5f * size,
+				0.5f * size * aspect, -0.5f * size };
+			glVertexAttribPointer(program->positionAttribute, 2, GL_FLOAT, false, 0, vertices);
+			glEnableVertexAttribArray(program->positionAttribute);
+		}
+		else {
+			float verticesReflected[] = {
+				-1 * -0.5f * size * aspect, -0.5f * size,
+				-1 * 0.5f * size * aspect, 0.5f * size,
+				-1 * -0.5f * size * aspect, 0.5f * size,
+				-1 * 0.5f * size * aspect, 0.5f * size,
+				-1 * -0.5f * size * aspect, -0.5f * size,
+				-1 * 0.5f * size * aspect, -0.5f * size };
+			glVertexAttribPointer(program->positionAttribute, 2, GL_FLOAT, false, 0, verticesReflected);
+			glEnableVertexAttribArray(program->positionAttribute);
+		}
 
 		glVertexAttribPointer(program->texCoordAttribute, 2, GL_FLOAT, false, 0, texCoords);
 		glEnableVertexAttribArray(program->texCoordAttribute);
@@ -118,12 +131,21 @@ void worldToTileCoordinates(float worldX, float worldY, int *gridX, int *gridY) 
 //class Entity to give all objects of the game a space to live in the program
 class Entity{
 public:
-	Entity(SheetSprite iSprite, float iWidth, float iHeight, float iX = 0.0f, float iY = 0.0f) :
-		sprite(iSprite), width(iWidth), height(iHeight), x(iX), y(iY),
+	Entity(GLuint spriteTexture, float iU, float iV, float iWidth, float iHeight, float iSize, int iNumSprites, int row = 0, float iX = 0.0f, float iY = 0.0f) :
+		width(iWidth), height(iHeight), numSprites(iNumSprites), x(iX), y(iY),
 		velocity_x(0.0f), velocity_y(0.0f), acceleration_x(0.0f), acceleration_y(0.0f),
-		collidedTop(false), collidedBottom(false), collidedLeft(false), collidedRight(false){}
-	void Draw(ShaderProgram *program){
-		sprite.Draw(program);
+		collidedTop(false), collidedBottom(false), collidedLeft(false), collidedRight(false){
+
+		for (size_t i = 0; i < numSprites; i++){
+			//SheetSprite newSprite(spriteTexture, (0.0f + width*i) / totalWidth, (height*row) / totalHeight, width / 256.0f, height / 128.0f, 1.4f);
+			SheetSprite newSprite(spriteTexture, iU + iWidth*i, iV + (iHeight*(row-1)), iWidth, iHeight, iSize);  //row = row in sprite sheet, need row-1 because we wanna start at the end of the previous row
+			sprites.push_back(newSprite);
+		}
+	
+	}
+
+	void Draw(ShaderProgram *program, SpriteDirection direction){
+		sprites[spriteIndex].Draw(program, direction);
 	}
 
 	void ResetFlags(){
@@ -133,7 +155,8 @@ public:
 		collidedRight = false;
 	}
 
-	SheetSprite sprite;
+	
+	std::vector<SheetSprite> sprites;	//CHILD CLASSES ARE RESPONSIBLE FOR SETTING THIS VECTOR! different entities may have different amount of sprites
 	float x;
 	float y;
 	float width;
@@ -147,14 +170,18 @@ public:
 	bool collidedLeft;
 	bool collidedRight;
 	bool jumping;      //used to test if player is currently jumping
+
+	int spriteIndex = 0;  //keeps track of what index of the sprites vector to draw
+	int numSprites;   //how many sprites there are altogether for this entity
+	float timeSinceLastSprite = 0.0f;   //used to slow down the walking animation for entities
 };
 
 
 class playerEnt : public Entity{
 public:
-
-	playerEnt(SheetSprite iSprite, float iWidth, float iHeight, int iLives, float iX = 0.0f, float iY = 0.0f) :
-		Entity(iSprite, iWidth, iHeight, iX, iY), lives(iLives){}
+	//width = width of one sprite, height = height of one sprite, totalWidth and totalHeight = width and height of the entire spritesheet, row = what row the sprites are on in the spritesheet, numSprites = how many SheetSprite objects to make (how many sprites for the entity)
+	playerEnt(GLuint iSpriteTexture, float iU, float iV, float iWidth, float iHeight, float iSize, int numSprites=1, int row = 0, float iX = 0.0f, float iY = 0.0f) :
+	Entity(iSpriteTexture, iU, iV, iWidth, iHeight, iSize, numSprites, row, iX, iY), spriteTexture(iSpriteTexture){}
 
 	void Update(float timeElapsed, const Uint8 *keys, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]);
 	void ResetPlayer(Matrix *viewMatrix, float vm_x, float vm_y){
@@ -168,38 +195,41 @@ public:
 		viewMatrix->Translate(vm_x, vm_y, 0.0f);
 	}
 
-	int lives;
+	GLuint spriteTexture;
+	SpriteDirection direction = RIGHT;
 	int gridX, gridY;
+	int health = 100;
+	int armor = 50;
 
 };
 
-class enemyEnt : public Entity{
-public:
-	enemyEnt(SheetSprite iSprite, float iWidth, float iHeight, int iLives, float iX = 0.0f, float iY = 0.0f) :
-		Entity(iSprite, iWidth, iHeight, iX, iY) {}
-};
+//class enemyEnt : public Entity{
+//public:
+//	enemyEnt(SheetSprite iSprite, float iWidth, float iHeight, int iLives, float iX = 0.0f, float iY = 0.0f) :
+//		Entity(iSprite, iWidth, iHeight, iX, iY) {}
+//};
 
-class keyEnt : public Entity{
-public:
-	keyEnt(SheetSprite iSprite, float iWidth, float iHeight, float iX = 0.0f, float iY = 0.0f) :
-		Entity(iSprite, iWidth, iHeight, iX, iY){}
-
-	void Draw(ShaderProgram *program, Matrix *modelMatrix, float ticks, float playerX){
-		modelMatrix->identity();
-		if (!collected){
-			modelMatrix->Translate(x, y, 0.0f);
-			modelMatrix->Rotate(ticks * 300 * (3.1415926 / 180.0));
-		}
-		else{
-			modelMatrix->Translate(playerX - 3.3f, -0.5f, 0.0f);
-			modelMatrix->Rotate(-45 * (3.1415926 / 180.0));
-		}
-		program->setModelMatrix(*modelMatrix);
-		sprite.Draw(program);
-	}
-
-	bool collected = false;
-};
+//class keyEnt : public Entity{
+//public:
+//	keyEnt(SheetSprite iSprite, float iWidth, float iHeight, float iX = 0.0f, float iY = 0.0f) :
+//		Entity(iSprite, iWidth, iHeight, iX, iY){}
+//
+//	void Draw(ShaderProgram *program, Matrix *modelMatrix, float ticks, float playerX){
+//		modelMatrix->identity();
+//		if (!collected){
+//			modelMatrix->Translate(x, y, 0.0f);
+//			modelMatrix->Rotate(ticks * 300 * (3.1415926 / 180.0));
+//		}
+//		else{
+//			modelMatrix->Translate(playerX - 3.3f, -0.5f, 0.0f);
+//			modelMatrix->Rotate(-45 * (3.1415926 / 180.0));
+//		}
+//		program->setModelMatrix(*modelMatrix);
+//		sprite.Draw(program);
+//	}
+//
+//	bool collected = false;
+//};
 
 //detects collision via the basic box-to-box algorithm, return true if detected, false otherwise
 bool detectCollisionTwoEntities(const Entity *a, const Entity *b){
@@ -325,9 +355,23 @@ bool detectCollisionEntityAndTiles(playerEnt *ent, const bool solidTiles[LEVEL_H
 void playerEnt::Update(float timeElapsed, const Uint8 *keys, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]){
 	if (keys != NULL && keys[SDL_SCANCODE_UP]){
 		acceleration_y = 7.5f;
+		timeSinceLastSprite += timeElapsed;
+		if (timeSinceLastSprite > 0.1f){
+			timeSinceLastSprite = 0.0f;
+			spriteIndex++;
+			if (spriteIndex >= numSprites)  //if the sprite index is greater than the total number of sprites
+				spriteIndex %= numSprites;  //set it back to 0 using modulo
+		}
 	}
 	else if (keys != NULL && keys[SDL_SCANCODE_DOWN]){
 		acceleration_y = -7.5f;
+		timeSinceLastSprite += timeElapsed;
+		if (timeSinceLastSprite > 0.1f){
+			timeSinceLastSprite = 0.0f;
+			spriteIndex++;
+			if (spriteIndex >= numSprites)  //if the sprite index is greater than the total number of sprites
+				spriteIndex %= numSprites;  //set it back to 0 using modulo
+		}
 	}
 	else acceleration_y = 0;
 
@@ -335,13 +379,35 @@ void playerEnt::Update(float timeElapsed, const Uint8 *keys, const bool solidTil
 	velocity_y = lerp(velocity_y, 0.0f, FRICTION * timeElapsed);
 	y += velocity_y * timeElapsed;
 	detectCollisionEntityAndTiles(this, solidTiles);
+
 	if (keys != NULL && keys[SDL_SCANCODE_LEFT]){
+		direction = LEFT;
 		acceleration_x = -10.5f;
+		if (!keys[SDL_SCANCODE_UP] && !keys[SDL_SCANCODE_DOWN]){
+			timeSinceLastSprite += timeElapsed;
+			if (timeSinceLastSprite > 0.1f){
+				timeSinceLastSprite = 0.0f;
+				spriteIndex++;
+				if (spriteIndex >= numSprites)  //if the sprite index is greater than the total number of sprites
+					spriteIndex %= numSprites;  //set it back to 0 using modulo
+			}
+		}
 	}
 	else if (keys != NULL && keys[SDL_SCANCODE_RIGHT]){
+		direction = RIGHT;
 		acceleration_x = 10.5f;
+		if (!keys[SDL_SCANCODE_UP] && !keys[SDL_SCANCODE_DOWN]){
+			timeSinceLastSprite += timeElapsed;
+			if (timeSinceLastSprite > 0.1f){
+				timeSinceLastSprite = 0.0f;
+				spriteIndex++;
+				if (spriteIndex >= numSprites)  //if the sprite index is greater than the total number of sprites
+					spriteIndex %= numSprites;  //set it back to 0 using modulo
+			}
+		}
 	}
 	else acceleration_x = 0;
+//	spriteIndex = 0;
 
 	velocity_x += acceleration_x * timeElapsed;
 	velocity_x = lerp(velocity_x, 0.0f, FRICTION * timeElapsed);
@@ -423,7 +489,7 @@ void drawTextBox(ShaderProgram *program, GLuint textBoxTexture, GLuint fontTextu
 	//regardless of the above text, this will always draw the hint string near the bottom-middle of the text box
 	std::string hint = "- Press space to continue - ";
 	fontModelMatrix.identity();
-	fontModelMatrix.Translate(x - 1.55f, y - 1.7f, 0.0f);
+	fontModelMatrix.Translate(x - 1.4f, y - 1.7f, 0.0f);
 	drawText(program, fontTexture, hint, 0.1, spacing, &fontModelMatrix);
 }
 
@@ -445,6 +511,14 @@ void Render(Matrix *modelMatrix, Matrix *playerModelMatrix){
 
 }
 
+void triggerFlag(bool &flag){
+	if (flag){
+		flag = false;
+	}
+	else{
+		flag = true;
+	}
+}
 
 int main(int argc, char *argv[])
 {
@@ -472,6 +546,7 @@ int main(int argc, char *argv[])
 	glUseProgram(program.programID);
 	GLuint tilesheet = LoadTexture("walls1.png");
 	GLuint font = LoadTexture("font.png");
+	GLuint textBoxTexture = LoadTexture("textBox.png");
 	GLuint white = LoadTexture("white.png");
 	//GLuint gauntTest = LoadTexture("gaunt.png");
 
@@ -484,13 +559,12 @@ int main(int argc, char *argv[])
 
 	GLuint menuArtTexture = LoadTexture("AstronautMenu.png");
 	SheetSprite menuArt(menuArtTexture, 0.0f, 0.0f, 1.0f, 1.0f, 2.8f);
-	GLuint playerTexture = LoadTexture("AstronautTest.png");
-	SheetSprite playerSprite(playerTexture, 0.0f, 0.0f, 40.0f / 40.0f, 40.0f / 40.0f, 0.4f);
-	GLuint textBoxTexture = LoadTexture("textBox.png");
-	playerEnt player(playerSprite, (playerSprite.size*(playerSprite.width / playerSprite.height) - 0.6f), playerSprite.size - 0.2f, 1, 0.5f, -3.55f);  //subtract -0.6f from width and -0.2f from height
+	GLuint playerTexture = LoadTexture("characters_3.png");
+	//SheetSprite playerSprite(playerTexture, 0.0f/256.0f, 64.0f/128.0f, 32.0f / 256.0f, 32.0f / 128.0f, 0.8f);
+	//playerEnt player(playerTexture, 32.0f/250.0f, 63.0f, 128.0f,  0.5f, -3.55f);  //subtract -0.6f from width and -0.2f from height
+	playerEnt player(playerTexture, 0.0f/256.0f, 0.0f/128.0f, 32.0f/256.0f, 32.0f/128.0f, 0.8f, 8, 3, 0.5f, -3.55f);
 	//to size the hitbox to the sprite properly
 	SheetSprite keySprite(tilesheet, 6.0f*16.0f / 256.0f, 5.0f*16.0f / 128.0f, 16.0f / 256.0f, 16.0f / 128.0f, 0.4f);
-	keyEnt key(keySprite, keySprite.size*(keySprite.width / keySprite.height), keySprite.size, 10.0f, -3.2f);
 
 
 	Matrix projectionMatrix;
@@ -617,14 +691,14 @@ int main(int argc, char *argv[])
 			else if (state == START_SCREEN && event.type == SDL_KEYDOWN)
 				if (event.key.keysym.scancode == SDL_SCANCODE_SPACE)
 					state = LEVEL_ONE;
-			else if (event.type == SDL_KEYDOWN){
-				if (event.key.keysym.scancode == SDL_SCANCODE_UP){
-					player.y += 100.0f;
-				}
-				else if (event.key.keysym.scancode == SDL_SCANCODE_DOWN){
-					player.velocity_y -= 100.0f;
-				}
-			}
+//			else if (event.type == SDL_KEYDOWN){
+				//if (event.key.keysym.scancode == SDL_SCANCODE_UP){
+				//	player.y += 100.0f;
+				//}
+				//else if (event.key.keysym.scancode == SDL_SCANCODE_DOWN){
+				//	player.velocity_y -= 100.0f;
+				//}
+//			}
 		}
 
 		const Uint8 *keys = SDL_GetKeyboardState(NULL);
@@ -671,10 +745,17 @@ int main(int argc, char *argv[])
 			//updates the gamestate using the overarching Update() function and then draws the player based on these updates
 			Update(elapsed, keys, &player, solidTiles);
 			playerModelMatrix.identity();
-			//playerModelMatrix.Scale(0.5f, 1.0f, 1.0f);
 			playerModelMatrix.Translate(player.x, player.y, 0.0f);
+			playerModelMatrix.Scale(1.5f, 1.0f, 1.0f);				//remember to change this if you change sprites!!
+
 			program.setModelMatrix(playerModelMatrix);
-			//player.Draw(&program);
+
+			player.Draw(&program, player.direction);
+
+			//player.spriteIndex++;
+
+			//if (player.spriteIndex >= player.numSprites)  //if the sprite index is greater than the total number of sprites
+			//	player.spriteIndex %= player.numSprites;  //set it back to 0 using modulo
 
 
 			drawTextBox(&program, textBoxTexture, font, boxModelMatrix, fontModelMatrix, first_line, 0.15, 0.0, player.x, player.y);
