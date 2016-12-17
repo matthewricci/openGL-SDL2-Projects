@@ -47,7 +47,7 @@ enum SpriteDirection { LEFT, RIGHT };
 int state;
 
 //global vars containing sounds used in-game, they are global vars so that class functions (e.g., Update) can access and play them
-Mix_Chunk *keySound;
+Mix_Chunk *walkSound;
 Mix_Chunk *jumpSound;
 Mix_Music *music;
 
@@ -111,6 +111,18 @@ GLuint LoadTexture(const char *image_path){
 	glGenTextures(1, &textureID);
 	glBindTexture(GL_TEXTURE_2D, textureID);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, testTexture->w, testTexture->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, testTexture->pixels);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	SDL_FreeSurface(testTexture);
+	return textureID;
+}
+
+GLuint LoadTextureNoAlpha(const char *image_path){
+	SDL_Surface *testTexture = IMG_Load(image_path);
+	GLuint textureID;
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_2D, textureID);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, testTexture->w, testTexture->h, 0, GL_RGB, GL_UNSIGNED_BYTE, testTexture->pixels);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	SDL_FreeSurface(testTexture);
@@ -359,6 +371,8 @@ void playerEnt::Update(float timeElapsed, const Uint8 *keys, const bool solidTil
 		if (timeSinceLastSprite > 0.1f){
 			timeSinceLastSprite = 0.0f;
 			spriteIndex++;
+			if (spriteIndex % 2)	//only play the sound on every other sprite change
+				Mix_PlayChannel(-1, walkSound, 0);
 			if (spriteIndex >= numSprites)  //if the sprite index is greater than the total number of sprites
 				spriteIndex %= numSprites;  //set it back to 0 using modulo
 		}
@@ -369,6 +383,8 @@ void playerEnt::Update(float timeElapsed, const Uint8 *keys, const bool solidTil
 		if (timeSinceLastSprite > 0.1f){
 			timeSinceLastSprite = 0.0f;
 			spriteIndex++;
+			if (spriteIndex % 2)	//only play the sound on every other sprite change
+				Mix_PlayChannel(-1, walkSound, 0);
 			if (spriteIndex >= numSprites)  //if the sprite index is greater than the total number of sprites
 				spriteIndex %= numSprites;  //set it back to 0 using modulo
 		}
@@ -388,8 +404,11 @@ void playerEnt::Update(float timeElapsed, const Uint8 *keys, const bool solidTil
 			if (timeSinceLastSprite > 0.1f){
 				timeSinceLastSprite = 0.0f;
 				spriteIndex++;
+				if (spriteIndex % 2)	//only play the sound on every other sprite change
+					Mix_PlayChannel(-1, walkSound, 0);
 				if (spriteIndex >= numSprites)  //if the sprite index is greater than the total number of sprites
 					spriteIndex %= numSprites;  //set it back to 0 using modulo
+
 			}
 		}
 	}
@@ -401,13 +420,14 @@ void playerEnt::Update(float timeElapsed, const Uint8 *keys, const bool solidTil
 			if (timeSinceLastSprite > 0.1f){
 				timeSinceLastSprite = 0.0f;
 				spriteIndex++;
+				if (spriteIndex % 2)	//only play the sound on every other sprite change
+					Mix_PlayChannel(-1, walkSound, 0);
 				if (spriteIndex >= numSprites)  //if the sprite index is greater than the total number of sprites
 					spriteIndex %= numSprites;  //set it back to 0 using modulo
 			}
 		}
 	}
 	else acceleration_x = 0;
-//	spriteIndex = 0;
 
 	velocity_x += acceleration_x * timeElapsed;
 	velocity_x = lerp(velocity_x, 0.0f, FRICTION * timeElapsed);
@@ -468,7 +488,7 @@ void drawTextBox(ShaderProgram *program, GLuint textBoxTexture, GLuint fontTextu
 
 	boxModelMatrix.identity();
 	boxModelMatrix.Translate(x, y-1.5f, 0.0f);
-	boxModelMatrix.Scale(7.0f, 1.0f, 1.0f);
+	boxModelMatrix.Scale(7.3f, 1.0f, 1.0f);
 	program->setModelMatrix(boxModelMatrix);
 
 	float vertices[] = { -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, };
@@ -520,6 +540,15 @@ void triggerFlag(bool &flag){
 	}
 }
 
+void drawBackground(ShaderProgram *program, GLuint background, Matrix &modelMatrix, float x, float y){
+	glBindTexture(GL_TEXTURE_2D, background);
+	modelMatrix.identity();
+	modelMatrix.Translate(x, y, 0.0f);
+	modelMatrix.Scale(7.0f, 4.0f, 1.0f);
+	program->setModelMatrix(modelMatrix);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+
 int main(int argc, char *argv[])
 {
 	SDL_Init(SDL_INIT_VIDEO);
@@ -543,11 +572,13 @@ int main(int argc, char *argv[])
 	//texture coordinates
 	glViewport(0, 0, 640 * 1.5, 360 * 1.5);
 	ShaderProgram program(RESOURCE_FOLDER"vertex_textured.glsl", RESOURCE_FOLDER"fragment_textured.glsl");
+	ShaderProgram program2(RESOURCE_FOLDER"vertex.glsl", RESOURCE_FOLDER"fragment.glsl");
 	glUseProgram(program.programID);
 	GLuint tilesheet = LoadTexture("walls1.png");
 	GLuint font = LoadTexture("font.png");
 	GLuint textBoxTexture = LoadTexture("textBox.png");
 	GLuint white = LoadTexture("white.png");
+	GLuint battleBackground = LoadTextureNoAlpha("battleBackground.png");
 	//GLuint gauntTest = LoadTexture("gaunt.png");
 
 	//for keeping viewMatrix constant and for following player movement  
@@ -594,6 +625,21 @@ int main(int argc, char *argv[])
 
 	unsigned char levelData[LEVEL_HEIGHT][LEVEL_WIDTH];
 	ifstream stream("gauntletTest.txt");
+
+	//initializes the ViewMatrix at the start of the game
+	viewMatrix.identity();
+	viewMatrix.Translate(vm_x, vm_y, 0.0f);
+	program.setViewMatrix(viewMatrix);
+
+
+	//SOUND EXTRA-CREDIT ADDITIONS
+	Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 4096);   //created audio buffer and sets a frequency and 2 channels for sound
+	walkSound = Mix_LoadWAV("walking3.wav");        //loads sounds
+//	jumpSound = Mix_LoadWAV("jump.wav");	  //loads sounds
+//	music = Mix_LoadMUS("key.wav");		  //loads music
+//	Mix_PlayMusic(music, -1);				  //plays music file on infinite loop (-1)
+
+	Entity *battleEnemy; //pointer to which kind of entity the player engaged in battle with
 
 	string line;
 	for (size_t i = 0; i < 10; i++)     //the following 2 lines skip the header, since it is constant
@@ -664,18 +710,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	//initializes the ViewMatrix at the start of the game
-	viewMatrix.identity();
-	viewMatrix.Translate(vm_x, vm_y, 0.0f);
-	program.setViewMatrix(viewMatrix);
-
-
-	//SOUND EXTRA-CREDIT ADDITIONS
-	Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 4096);   //created audio buffer and sets a frequency and 2 channels for sound
-	keySound = Mix_LoadWAV("key.wav");        //loads sounds
-	jumpSound = Mix_LoadWAV("jump.wav");	  //loads sounds
-	music = Mix_LoadMUS("ac_1200.mid");		  //loads music
-	Mix_PlayMusic(music, -1);				  //plays music file on infinite loop (-1)
 
 	while (!done) {
 		//for general time-keeping between frames
@@ -688,9 +722,18 @@ int main(int argc, char *argv[])
 			if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE) {
 				done = true;
 			}
-			else if (state == START_SCREEN && event.type == SDL_KEYDOWN)
+			else if (state == START_SCREEN && event.type == SDL_KEYDOWN){
 				if (event.key.keysym.scancode == SDL_SCANCODE_SPACE)
 					state = LEVEL_ONE;
+			}
+			else if (state != BATTLE && event.type == SDL_KEYDOWN){
+				if (event.key.keysym.scancode == SDL_SCANCODE_Q)
+					state = BATTLE;
+			}
+			else if (state == BATTLE && event.type == SDL_KEYDOWN){
+				if (event.key.keysym.scancode == SDL_SCANCODE_Q)
+					state = LEVEL_ONE;
+			}
 //			else if (event.type == SDL_KEYDOWN){
 				//if (event.key.keysym.scancode == SDL_SCANCODE_UP){
 				//	player.y += 100.0f;
@@ -762,7 +805,10 @@ int main(int argc, char *argv[])
 
 
 		}
-
+		else if (state == BATTLE){
+			drawBackground(&program, battleBackground, modelMatrix, player.x, player.y);
+			//battleEnemy->Draw(&program, RIGHT);
+		}
 		else{
 			modelMatrix.identity();
 			//modelMatrix.Scale(2.3f, 5.8f, 1.0f);
@@ -787,8 +833,8 @@ int main(int argc, char *argv[])
 			//playerModelMatrix.Scale(0.7f, 1.0f, 1.0f);
 			//program.setModelMatrix(playerModelMatrix);
 			modelMatrix.identity();
-			modelMatrix.Scale(0.7f, 1.0f, 1.0f);
-			modelMatrix.Translate(7.0f, -2.0f, 0.0f);
+			modelMatrix.Translate(5.2f, -2.3f, 0.0f);
+			modelMatrix.Scale(1.0f, 1.2f, 1.0f);
 			program.setModelMatrix(modelMatrix);
 			menuArt.Draw(&program);
 		}
@@ -803,7 +849,7 @@ int main(int argc, char *argv[])
 		SDL_GL_SwapWindow(displayWindow);
 
 	}
-	Mix_FreeChunk(keySound);
+	Mix_FreeChunk(walkSound);
 	Mix_FreeChunk(jumpSound);
 	Mix_FreeMusic(music);
 	SDL_Quit();

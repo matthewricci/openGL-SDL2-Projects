@@ -90,7 +90,6 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="font.png" />
-    <Image Include="Space Background.png" />
     <Image Include="sprites.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

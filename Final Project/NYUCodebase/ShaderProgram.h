@@ -27,6 +27,7 @@ class ShaderProgram {
         GLuint projectionMatrixUniform;
         GLuint modelMatrixUniform;
         GLuint viewMatrixUniform;
+		GLuint alphaValueUniform;
     
         GLuint positionAttribute;
         GLuint texCoordAttribute;

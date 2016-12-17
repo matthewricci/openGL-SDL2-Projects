@@ -23,9 +23,11 @@ ShaderProgram::ShaderProgram(const char *vertexShaderFile, const char *fragmentS
     modelMatrixUniform = glGetUniformLocation(programID, "modelMatrix");
     projectionMatrixUniform = glGetUniformLocation(programID, "projectionMatrix");
     viewMatrixUniform = glGetUniformLocation(programID, "viewMatrix");
-    
+	alphaValueUniform = glGetUniformLocation(programID, "alphaValue");
+
     positionAttribute = glGetAttribLocation(programID, "position");
     texCoordAttribute = glGetAttribLocation(programID, "texCoord");
+
     
 }
 

@@ -40,9 +40,6 @@
     <None Include="vertex_textured.glsl" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Space Background.png">
-      <Filter>Resource Files</Filter>
-    </Image>
     <Image Include="sprites.png">
       <Filter>Resource Files</Filter>
     </Image>
