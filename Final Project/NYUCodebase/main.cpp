@@ -34,7 +34,7 @@ using namespace std;
 #define SPRITE_COUNT_Y 16    //number of rows in the tilesheet
 #define TILE_SIZE 0.2
 //#define GRAVITY 5          //counteracts jumping velocity
-#define FRICTION 10
+#define FRICTION 12
 // 60 FPS (1.0f/60.0f)
 #define FIXED_TIMESTEP 0.0166666f
 #define MAX_TIMESTEPS 6
@@ -42,9 +42,11 @@ using namespace std;
 
 SDL_Window* displayWindow;
 
-enum GameState { START_SCREEN, LEVEL_ONE, LEVEL_TWO, BATTLE };
-enum SpriteDirection { LEFT, RIGHT };
-int state;
+enum GameState { START_SCREEN, LEVEL_ONE, LEVEL_TWO, BATTLE };   //different states the game can be in
+enum SpriteDirection { LEFT, RIGHT };							 //different directions the sprites can be looking
+enum AIState {STANDBY, PURSUE, RETURN};
+
+int state; //global var for the current game state the loop is in
 
 //global vars containing sounds used in-game, they are global vars so that class functions (e.g., Update) can access and play them
 Mix_Chunk *walkSound;
@@ -143,10 +145,10 @@ void worldToTileCoordinates(float worldX, float worldY, int *gridX, int *gridY) 
 //class Entity to give all objects of the game a space to live in the program
 class Entity{
 public:
-	Entity(GLuint spriteTexture, float iU, float iV, float iWidth, float iHeight, float iSize, int iNumSprites, int row = 0, float iX = 0.0f, float iY = 0.0f) :
+	Entity(GLuint iSpriteTexture, float iU, float iV, float iWidth, float iHeight, float iSize, int iNumSprites, int row = 0, float iX = 0.0f, float iY = 0.0f) :
 		width(iWidth), height(iHeight), numSprites(iNumSprites), x(iX), y(iY),
 		velocity_x(0.0f), velocity_y(0.0f), acceleration_x(0.0f), acceleration_y(0.0f),
-		collidedTop(false), collidedBottom(false), collidedLeft(false), collidedRight(false){
+		collidedTop(false), collidedBottom(false), collidedLeft(false), collidedRight(false), spriteTexture(iSpriteTexture){
 
 		for (size_t i = 0; i < numSprites; i++){
 			//SheetSprite newSprite(spriteTexture, (0.0f + width*i) / totalWidth, (height*row) / totalHeight, width / 256.0f, height / 128.0f, 1.4f);
@@ -167,7 +169,7 @@ public:
 		collidedRight = false;
 	}
 
-	
+	GLuint spriteTexture;
 	std::vector<SheetSprite> sprites;	//CHILD CLASSES ARE RESPONSIBLE FOR SETTING THIS VECTOR! different entities may have different amount of sprites
 	float x;
 	float y;
@@ -183,6 +185,8 @@ public:
 	bool collidedRight;
 	bool jumping;      //used to test if player is currently jumping
 
+	int gridX, gridY;
+
 	int spriteIndex = 0;  //keeps track of what index of the sprites vector to draw
 	int numSprites;   //how many sprites there are altogether for this entity
 	float timeSinceLastSprite = 0.0f;   //used to slow down the walking animation for entities
@@ -192,8 +196,8 @@ public:
 class playerEnt : public Entity{
 public:
 	//width = width of one sprite, height = height of one sprite, totalWidth and totalHeight = width and height of the entire spritesheet, row = what row the sprites are on in the spritesheet, numSprites = how many SheetSprite objects to make (how many sprites for the entity)
-	playerEnt(GLuint iSpriteTexture, float iU, float iV, float iWidth, float iHeight, float iSize, int numSprites=1, int row = 0, float iX = 0.0f, float iY = 0.0f) :
-	Entity(iSpriteTexture, iU, iV, iWidth, iHeight, iSize, numSprites, row, iX, iY), spriteTexture(iSpriteTexture){}
+	playerEnt(GLuint iSpriteTexture, float iU, float iV, float iWidth, float iHeight, float iSize, int numSprites = 1, int row = 0, float iX = 0.0f, float iY = 0.0f) :
+	Entity(iSpriteTexture, iU, iV, iWidth, iHeight, iSize, numSprites, row, iX, iY){}
 
 	void Update(float timeElapsed, const Uint8 *keys, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]);
 	void ResetPlayer(Matrix *viewMatrix, float vm_x, float vm_y){
@@ -207,11 +211,35 @@ public:
 		viewMatrix->Translate(vm_x, vm_y, 0.0f);
 	}
 
+	SpriteDirection direction = RIGHT;
+	int health = 100;
+	int armor = 50;
+
+};
+
+class enemyEnt : public Entity{
+public:
+	enemyEnt(GLuint iSpriteTexture, float iU, float iV, float iWidth, float iHeight, float iSize, int numSprites = 1, int row = 0, float iX = 0.0f, float iY = 0.0f, float iVisionDistance = 1.35f) : 
+	Entity(iSpriteTexture, iU, iV, iWidth, iHeight, iSize, numSprites, row, iX, iY), basePositionX(iX), basePositionY(iY), visionDistance(iVisionDistance){}
+
+	bool proximityTest(float otherEntX, float otherEntY){
+		//using Pythagorean theorem to define a ray test between this entity and another entity
+		float ray = sqrt(abs(x - otherEntX) + abs(y - otherEntY));
+		if (ray <= visionDistance){ return true; }
+		else { return false; }
+	}
+
+	void Update(float timeElapsed, const float playerX, const float playerY, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]);
+
 	GLuint spriteTexture;
 	SpriteDirection direction = RIGHT;
 	int gridX, gridY;
-	int health = 100;
-	int armor = 50;
+	float basePositionX;
+	float basePositionY;
+	float visionDistance;
+	AIState currentState = STANDBY;
+
+
 
 };
 
@@ -262,7 +290,7 @@ bool detectCollisionTwoEntities(const Entity *a, const Entity *b){
 }
 
 //performs collision checks on several different points all at once for a given entity
-bool detectCollisionEntityAndTiles(playerEnt *ent, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]){
+bool detectCollisionEntityAndTiles(Entity *ent, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]){
 	float bottom = ent->y - (ent->height / 2);
 	float top = ent->y + (ent->height / 2);       //get float values of all 4 sides of ent
 	float left = ent->x - (ent->width / 2);
@@ -436,6 +464,73 @@ void playerEnt::Update(float timeElapsed, const Uint8 *keys, const bool solidTil
 
 }
 
+void enemyEnt::Update(float timeElapsed, float playerX, float playerY, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]){
+	
+	bool isInRange = proximityTest(playerX, playerY);
+
+	//pair of if statements checking of the currentState variable needs changing
+	if (currentState != PURSUE && isInRange){
+		currentState = PURSUE;
+	}
+	else if (!isInRange){
+		if (currentState != STANDBY && abs(x - basePositionX) < 0.05f && abs(y - basePositionY) < 0.05f){
+			currentState = STANDBY;
+		}
+		else if (currentState != RETURN && abs(x - basePositionX) > 0.05f || abs(y - basePositionY) > 0.05f){
+			currentState = RETURN;
+		}
+	}
+
+	//once the variable has been changed/not changed, it is checked a second time to determine how to update position
+	if (currentState == PURSUE){
+		//y-axis first
+		acceleration_y = 8.0f;
+		velocity_y += acceleration_y * timeElapsed;
+		velocity_y = lerp(velocity_y, 0.0f, FRICTION * timeElapsed);
+		y += (playerY - y) * velocity_y * timeElapsed;
+		detectCollisionEntityAndTiles(this, solidTiles);
+		//then x-axis
+		acceleration_x = 8.0f;
+		velocity_x += acceleration_x * timeElapsed;
+		velocity_x = lerp(velocity_x, 0.0f, FRICTION * timeElapsed);
+		x += (playerX - x) * velocity_x * timeElapsed;
+		detectCollisionEntityAndTiles(this, solidTiles);
+
+		if (playerX - x < 0){
+			direction = LEFT;
+		}
+		else direction = RIGHT;
+
+	}
+	else if ( currentState == RETURN){
+		//y-axis first
+		acceleration_y = 5.0f;
+		velocity_y += acceleration_y * timeElapsed;
+		velocity_y = lerp(velocity_y, 0.0f, FRICTION * timeElapsed);
+		y += (basePositionY - y) * velocity_y * timeElapsed;
+		detectCollisionEntityAndTiles(this, solidTiles);
+		//then x-axis
+		acceleration_x = 5.0f;
+		velocity_x += acceleration_x * timeElapsed;
+		velocity_x = lerp(velocity_x, 0.0f, FRICTION * timeElapsed);
+		x += (basePositionX - x) * velocity_x * timeElapsed;
+		detectCollisionEntityAndTiles(this, solidTiles);
+
+		if (basePositionX - x < 0){
+			direction = LEFT;
+		}
+		else direction = RIGHT;
+
+	}
+	else{  //currentState must be STANDBY
+		acceleration_x = 0.0f;
+		//velocity_x = lerp(velocity_x, 0.0f, FRICTION * timeElapsed);
+		acceleration_y = 0.0f;
+		//velocity_y = lerp(velocity_y, 0.0f, FRICTION * timeElapsed);
+	}
+
+
+}
 
 //draws a string to screen given a font sheet and a string
 void drawText(ShaderProgram *program, int fontTexture, std::string text, float size, float spacing, Matrix *modelMatrix) {
@@ -514,7 +609,7 @@ void drawTextBox(ShaderProgram *program, GLuint textBoxTexture, GLuint fontTextu
 }
 
 //updates the entire gamestate for all entities
-void Update(float timeElapsed, const Uint8 *keys, playerEnt *player, bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]){
+void Update(float timeElapsed, const Uint8 *keys, playerEnt *player, std::vector<enemyEnt> enemies, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]){
 	float fixedElapsed = timeElapsed;
 	if (fixedElapsed > FIXED_TIMESTEP * MAX_TIMESTEPS) {
 		fixedElapsed = FIXED_TIMESTEP * MAX_TIMESTEPS;
@@ -522,8 +617,14 @@ void Update(float timeElapsed, const Uint8 *keys, playerEnt *player, bool solidT
 	while (fixedElapsed >= FIXED_TIMESTEP) {
 		fixedElapsed -= FIXED_TIMESTEP;
 		player->Update(FIXED_TIMESTEP, keys, solidTiles);
+		for (size_t i = 0; i < enemies.size(); i++){
+			enemies[i].Update(FIXED_TIMESTEP, player->x, player->y, solidTiles);
+		}
 	}
 	player->Update(fixedElapsed, keys, solidTiles);
+	for (size_t i = 0; i < enemies.size(); i++){
+		enemies[i].Update(fixedElapsed, player->x, player->y, solidTiles);
+	}
 }
 
 //renders entire gamestate (should be called AFTER all Update() calls
@@ -594,13 +695,19 @@ int main(int argc, char *argv[])
 	//SheetSprite playerSprite(playerTexture, 0.0f/256.0f, 64.0f/128.0f, 32.0f / 256.0f, 32.0f / 128.0f, 0.8f);
 	//playerEnt player(playerTexture, 32.0f/250.0f, 63.0f, 128.0f,  0.5f, -3.55f);  //subtract -0.6f from width and -0.2f from height
 	playerEnt player(playerTexture, 0.0f/256.0f, 0.0f/128.0f, 32.0f/256.0f, 32.0f/128.0f, 0.8f, 8, 3, 0.5f, -3.55f);
-	//to size the hitbox to the sprite properly
+	
+	std::vector<enemyEnt> enemies;
+		enemies.push_back(enemyEnt(playerTexture, 0.0f / 256.0f, 0.0f / 128.0f, 32.0f / 256.0f, 32.0f / 128.0f, 0.8f, 8, 3, 0.5f, -2.55f));
+		enemies.push_back(enemyEnt(playerTexture, 0.0f / 256.0f, 0.0f / 128.0f, 32.0f / 256.0f, 32.0f / 128.0f, 0.8f, 8, 3, 1.5f, -1.55f));
+
+	//DELETE?
 	SheetSprite keySprite(tilesheet, 6.0f*16.0f / 256.0f, 5.0f*16.0f / 128.0f, 16.0f / 256.0f, 16.0f / 128.0f, 0.4f);
 
 
 	Matrix projectionMatrix;
 	Matrix modelMatrix;
 	Matrix playerModelMatrix;
+	Matrix enemyModelMatrix;
 	Matrix boxModelMatrix;
 	Matrix fontModelMatrix;
 	Matrix viewMatrix;
@@ -636,7 +743,7 @@ int main(int argc, char *argv[])
 	Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 4096);   //created audio buffer and sets a frequency and 2 channels for sound
 	walkSound = Mix_LoadWAV("walking3.wav");        //loads sounds
 //	jumpSound = Mix_LoadWAV("jump.wav");	  //loads sounds
-//	music = Mix_LoadMUS("key.wav");		  //loads music
+//	music = Mix_LoadMUS("backgroundMusic.mp3");		  //loads music
 //	Mix_PlayMusic(music, -1);				  //plays music file on infinite loop (-1)
 
 	Entity *battleEnemy; //pointer to which kind of entity the player engaged in battle with
@@ -782,18 +889,33 @@ int main(int argc, char *argv[])
 				program.setViewMatrix(viewMatrix);
 			
 
-			if (player.y < -4.0f)
-				player.ResetPlayer(&viewMatrix, vm_x, vm_y);
+			//if (player.y < -4.0f)
+			//	player.ResetPlayer(&viewMatrix, vm_x, vm_y);
 
 			//updates the gamestate using the overarching Update() function and then draws the player based on these updates
-			Update(elapsed, keys, &player, solidTiles);
+			Update(elapsed, keys, &player, enemies, solidTiles);
 			playerModelMatrix.identity();
 			playerModelMatrix.Translate(player.x, player.y, 0.0f);
-			playerModelMatrix.Scale(1.5f, 1.0f, 1.0f);				//remember to change this if you change sprites!!
+			//playerModelMatrix.Scale(1.5f, 1.0f, 1.0f);				//remember to change this if you change sprites!!
 
 			program.setModelMatrix(playerModelMatrix);
 
 			player.Draw(&program, player.direction);
+
+			for (size_t i = 0; i < enemies.size(); i++){
+				if (enemies[i].currentState != PURSUE && enemies[i].proximityTest(player.x, player.y)){
+					enemies[i].currentState = PURSUE;
+				}
+				else enemies[i].currentState = STANDBY;
+				enemies[i].Update(elapsed, player.x, player.y, solidTiles);
+				enemyModelMatrix.identity();
+				enemyModelMatrix.Translate(enemies[i].x, enemies[i].y, 0.0f);
+				enemyModelMatrix.Scale(1.5f, 1.0f, 1.0f);
+				program.setModelMatrix(enemyModelMatrix);
+				enemies[i].Draw(&program, enemies[i].direction);
+			}
+
+
 
 			//player.spriteIndex++;
 
