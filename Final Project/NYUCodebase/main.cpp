@@ -20,6 +20,7 @@ use a library/linked list/something else to make a dialogue tree and store each 
 #include <iostream>
 #include <sstream>
 #include <SDL_mixer.h>
+#include <random>
 using namespace std;
 
 #ifdef _WINDOWS
@@ -52,6 +53,60 @@ int state; //global var for the current game state the loop is in
 Mix_Chunk *walkSound;
 Mix_Chunk *jumpSound;
 Mix_Music *music;
+
+class Vector{
+public:
+	Vector(float x=0.0f, float y=0.0f) : x(x), y(y){}
+
+	float x;
+	float y;
+};
+
+class Particle {
+public:
+	Vector position;
+	Vector velocity;
+	float lifetime;
+};
+
+class ParticleEmitter {
+public:
+	ParticleEmitter(unsigned int particleCount, Vector &position, Vector &velocity, Vector velocityDeviation, Vector &gravity, float maxLifetime) : 
+		position(position), velocity(velocity), velocityDeviation(velocityDeviation), gravity(gravity), maxLifetime(maxLifetime) {
+		
+		for (size_t i = 0; i < particleCount; i++){
+
+		}
+
+	}
+	ParticleEmitter();
+	~ParticleEmitter();
+
+
+	void Update(float elapsed);
+	void Render();
+
+	void Draw(const ShaderProgram &program){
+		std::vector<float> vertices;
+
+		for (int i = 0; i < particles.size(); i++) {
+			vertices.push_back(particles[i].position.x);
+			vertices.push_back(particles[i].position.y);
+		}
+
+		glVertexAttribPointer(program.positionAttribute, 2, GL_FLOAT, false, 0, vertices.data());
+		glEnableVertexAttribArray(program.positionAttribute);
+		glDrawArrays(GL_POINTS, 0, vertices.size() / 2);
+	}
+
+	Vector position;
+	Vector gravity;
+	Vector velocity;
+	Vector velocityDeviation;
+	float maxLifetime;
+
+	std::vector<Particle> particles;
+};
 
 //class SheetSprite for mapping and storing sprites from a sheet
 class SheetSprite {
@@ -237,11 +292,15 @@ public:
 	float basePositionX;
 	float basePositionY;
 	float visionDistance;
+	int health = 50;
 	AIState currentState = STANDBY;
-
-
+	bool alive = true;
 
 };
+
+//global var pointing to the enemy currently/most recently in battle with player
+//enemyEnt *battleEnemy; this pointer causes serious breakpoint problems so just use size_t
+size_t battleEnemy;
 
 //class enemyEnt : public Entity{
 //public:
@@ -289,6 +348,29 @@ bool detectCollisionTwoEntities(const Entity *a, const Entity *b){
 		return true;
 }
 
+void fixEntityCollision(Entity *a, Entity *b){
+	//if a's bottom is lower than b's top AND a's top is higher than b's top, we need to move a's Y up and b's Y down
+
+}
+
+//bool newDetectCollisionTwoEntities(float timeElapsed, Entity *a, Entity *b){
+//	// if a's top if higher than b's bottom, possible collision
+//	if ((a->y + (a->height / 2)) > (b->y - (b->height / 2))){
+//		if (a->x < b->x){ //if a is to the left of b
+//			//if a's right side is past b's left side, we are colliding
+//			if ((a->x + (a->width / 2)) >(b->x - (b->width / 2))){
+//
+//				return true;
+//			}
+//		}
+//	}
+//
+//	//if a's bottom is lower than b's top, possible collision
+//	else if ((a->y - (a->height / 2)) < (b->y + (b->height / 2))){
+//
+//	}
+//}
+
 //performs collision checks on several different points all at once for a given entity
 bool detectCollisionEntityAndTiles(Entity *ent, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]){
 	float bottom = ent->y - (ent->height / 2);
@@ -304,7 +386,6 @@ bool detectCollisionEntityAndTiles(Entity *ent, const bool solidTiles[LEVEL_HEIG
 		ent->y += ((-TILE_SIZE * ent->gridY) - (ent->y - (ent->height / 2)) - 0.0002f);  //move ent out of collision
 		ent->acceleration_y = 0;
 		ent->velocity_y = 0;
-		ent->jumping = false;
 	}
 
 	//check if top is colliding with a solid block
@@ -624,6 +705,10 @@ void Update(float timeElapsed, const Uint8 *keys, playerEnt *player, std::vector
 	player->Update(fixedElapsed, keys, solidTiles);
 	for (size_t i = 0; i < enemies.size(); i++){
 		enemies[i].Update(fixedElapsed, player->x, player->y, solidTiles);
+		if (state != BATTLE && enemies[i].alive==true && detectCollisionTwoEntities(player, &enemies[i])){
+			battleEnemy = i;
+			state = BATTLE;
+		}
 	}
 }
 
@@ -746,7 +831,6 @@ int main(int argc, char *argv[])
 //	music = Mix_LoadMUS("backgroundMusic.mp3");		  //loads music
 //	Mix_PlayMusic(music, -1);				  //plays music file on infinite loop (-1)
 
-	Entity *battleEnemy; //pointer to which kind of entity the player engaged in battle with
 
 	string line;
 	for (size_t i = 0; i < 10; i++)     //the following 2 lines skip the header, since it is constant
@@ -838,8 +922,10 @@ int main(int argc, char *argv[])
 					state = BATTLE;
 			}
 			else if (state == BATTLE && event.type == SDL_KEYDOWN){
-				if (event.key.keysym.scancode == SDL_SCANCODE_Q)
+				if (event.key.keysym.scancode == SDL_SCANCODE_Q){
 					state = LEVEL_ONE;
+					enemies[battleEnemy].alive = false;
+					}
 			}
 //			else if (event.type == SDL_KEYDOWN){
 				//if (event.key.keysym.scancode == SDL_SCANCODE_UP){
@@ -913,6 +999,10 @@ int main(int argc, char *argv[])
 				enemyModelMatrix.Scale(1.5f, 1.0f, 1.0f);
 				program.setModelMatrix(enemyModelMatrix);
 				enemies[i].Draw(&program, enemies[i].direction);
+				fontModelMatrix.identity();
+				fontModelMatrix.Translate(enemies[i].x - 0.08f, enemies[i].y + 0.3f, 0.0f);
+				program.setModelMatrix(fontModelMatrix);
+				drawText(&program, font, std::to_string(enemies[i].health), 0.13f, 0.0f, &fontModelMatrix);
 			}
 
 
