@@ -550,7 +550,7 @@ void enemyEnt::Update(float timeElapsed, float playerX, float playerY, const boo
 	bool isInRange = proximityTest(playerX, playerY);
 
 	//pair of if statements checking of the currentState variable needs changing
-	if (currentState != PURSUE && isInRange){
+	if (currentState != PURSUE && alive && isInRange){
 		currentState = PURSUE;
 	}
 	else if (!isInRange){
@@ -699,15 +699,19 @@ void Update(float timeElapsed, const Uint8 *keys, playerEnt *player, std::vector
 		fixedElapsed -= FIXED_TIMESTEP;
 		player->Update(FIXED_TIMESTEP, keys, solidTiles);
 		for (size_t i = 0; i < enemies.size(); i++){
-			enemies[i].Update(FIXED_TIMESTEP, player->x, player->y, solidTiles);
+			if (enemies[i].alive){
+				enemies[i].Update(FIXED_TIMESTEP, player->x, player->y, solidTiles);
+			}
 		}
 	}
 	player->Update(fixedElapsed, keys, solidTiles);
 	for (size_t i = 0; i < enemies.size(); i++){
-		enemies[i].Update(fixedElapsed, player->x, player->y, solidTiles);
-		if (state != BATTLE && enemies[i].alive==true && detectCollisionTwoEntities(player, &enemies[i])){
-			battleEnemy = i;
-			state = BATTLE;
+		if (enemies[i].alive){
+			enemies[i].Update(fixedElapsed, player->x, player->y, solidTiles);
+			if (state != BATTLE && enemies[i].alive && detectCollisionTwoEntities(player, &enemies[i])){
+				battleEnemy = i;
+				state = BATTLE;
+			}
 		}
 	}
 }
@@ -772,7 +776,7 @@ int main(int argc, char *argv[])
 	float vm_y = 2.3f;
 
 	//array holding data on solid tile blocks, check against them to see if collision is present
-	bool solidTiles[20][25];
+	bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH];
 
 	GLuint menuArtTexture = LoadTexture("AstronautMenu.png");
 	SheetSprite menuArt(menuArtTexture, 0.0f, 0.0f, 1.0f, 1.0f, 2.8f);
@@ -852,7 +856,7 @@ int main(int argc, char *argv[])
 					if (val > 0) {
 						// be careful, the tiles in this format are indexed from 1 not 0
 						levelData[y][x] = val - 1;
-						if (val == 2 || val == 4 || val == 5 || val == 8 || val == 17 || val == 19 || val == 21)
+						if (val == 1)
 							solidTiles[y][x] = true;
 					}
 					else {
@@ -917,10 +921,7 @@ int main(int argc, char *argv[])
 				if (event.key.keysym.scancode == SDL_SCANCODE_SPACE)
 					state = LEVEL_ONE;
 			}
-			else if (state != BATTLE && event.type == SDL_KEYDOWN){
-				if (event.key.keysym.scancode == SDL_SCANCODE_Q)
-					state = BATTLE;
-			}
+
 			else if (state == BATTLE && event.type == SDL_KEYDOWN){
 				if (event.key.keysym.scancode == SDL_SCANCODE_Q){
 					state = LEVEL_ONE;
@@ -989,10 +990,12 @@ int main(int argc, char *argv[])
 			player.Draw(&program, player.direction);
 
 			for (size_t i = 0; i < enemies.size(); i++){
-				if (enemies[i].currentState != PURSUE && enemies[i].proximityTest(player.x, player.y)){
+				if (enemies[i].currentState != PURSUE && enemies[i].alive && enemies[i].proximityTest(player.x, player.y)){
 					enemies[i].currentState = PURSUE;
 				}
-				else enemies[i].currentState = STANDBY;
+				else if (!enemies[i].alive){
+					enemies[i].currentState = STANDBY;
+				}
 				enemies[i].Update(elapsed, player.x, player.y, solidTiles);
 				enemyModelMatrix.identity();
 				enemyModelMatrix.Translate(enemies[i].x, enemies[i].y, 0.0f);
