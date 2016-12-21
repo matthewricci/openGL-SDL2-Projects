@@ -372,13 +372,13 @@ void fixEntityCollision(Entity *a, Entity *b){
 //}
 
 //performs collision checks on several different points all at once for a given entity
-bool detectCollisionEntityAndTiles(Entity *ent, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]){
+void detectCollisionEntityAndTiles(Entity *ent, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]){
 	float bottom = ent->y - (ent->height / 2);
 	float top = ent->y + (ent->height / 2);       //get float values of all 4 sides of ent
 	float left = ent->x - (ent->width / 2);
 	float right = ent->x + (ent->width / 2);
-	float upper = ent->y + (ent->width / 3);
-	float lower = ent->y - (ent->width / 3);
+	float upper = ent->y + (ent->height / 3);
+	float lower = ent->y - (ent->height / 3);
 
 	//check if bottom is colliding with a solid block
 	worldToTileCoordinates(ent->x, bottom, &ent->gridX, &ent->gridY);  //convert to tile coords
@@ -400,8 +400,8 @@ bool detectCollisionEntityAndTiles(Entity *ent, const bool solidTiles[LEVEL_HEIG
 	worldToTileCoordinates(left, ent->y, &ent->gridX, &ent->gridY);
 	if (solidTiles[ent->gridY][ent->gridX] == true){
 		ent->x += (((TILE_SIZE * ent->gridX) + TILE_SIZE) - (ent->x - ent->width / 2) - 0.0002f);
-		//ent->acceleration_x = 0;
-		//ent->velocity_x = 0;
+		ent->acceleration_x = 0;
+		ent->velocity_x = 0;
 	}
 
 	//check if right is colliding with a solid block
@@ -420,21 +420,29 @@ bool detectCollisionEntityAndTiles(Entity *ent, const bool solidTiles[LEVEL_HEIG
 		ent->velocity_x = 0;
 	}
 
-	//check if bottom-right corner is colliding with a solid block ----- DOESN'T WORK, COLLIDES WITH GROUND AND SENDS YOU FLYING
-	if (ent->jumping){
-		worldToTileCoordinates(right, bottom, &ent->gridX, &ent->gridY);
-		if (solidTiles[ent->gridY][ent->gridX] == true){
-			ent->x -= ((ent->x + (ent->width / 2)) - (TILE_SIZE * ent->gridX) + 0.002f);
-			ent->acceleration_x = 0;
-			ent->velocity_x = 0;
-		}
-		worldToTileCoordinates(left, bottom, &ent->gridX, &ent->gridY);
-		if (solidTiles[ent->gridY][ent->gridX] == true){
-			ent->x += (((TILE_SIZE * ent->gridX) + TILE_SIZE) - (ent->x - ent->width / 2) - 0.0002f);
-			ent->acceleration_x = 0;
-			ent->velocity_x = 0;
-		}
+	//check if top-left corner is colliding with a solid block
+	worldToTileCoordinates(left, top, &ent->gridX, &ent->gridY);
+	if (solidTiles[ent->gridY][ent->gridX] == true){
+		ent->x += (((TILE_SIZE * ent->gridX) + TILE_SIZE) - (ent->x - ent->width / 2) - 0.0002f);
+		ent->acceleration_x = 0;
+		ent->velocity_x = 0;
 	}
+
+	////check if bottom-right corner is colliding with a solid block ----- DOESN'T WORK, COLLIDES WITH GROUND AND SENDS YOU FLYING
+	//if (ent->jumping){
+	//	worldToTileCoordinates(right, bottom, &ent->gridX, &ent->gridY);
+	//	if (solidTiles[ent->gridY][ent->gridX] == true){
+	//		ent->x -= ((ent->x + (ent->width / 2)) - (TILE_SIZE * ent->gridX) + 0.002f);
+	//		ent->acceleration_x = 0;
+	//		ent->velocity_x = 0;
+	//	}
+	//	worldToTileCoordinates(left, bottom, &ent->gridX, &ent->gridY);
+	//	if (solidTiles[ent->gridY][ent->gridX] == true){
+	//		ent->x += (((TILE_SIZE * ent->gridX) + TILE_SIZE) - (ent->x - ent->width / 2) - 0.0002f);
+	//		ent->acceleration_x = 0;
+	//		ent->velocity_x = 0;
+	//	}
+	//}
 
 
 	//check if upper-right corner is colliding with a solid block
@@ -454,22 +462,21 @@ bool detectCollisionEntityAndTiles(Entity *ent, const bool solidTiles[LEVEL_HEIG
 	}
 
 	//check if upper-left corner is colliding with a solid block
-	worldToTileCoordinates(right, upper, &ent->gridX, &ent->gridY);
+	worldToTileCoordinates(left, upper, &ent->gridX, &ent->gridY);
 	if (solidTiles[ent->gridY][ent->gridX] == true){
-		ent->x += ((ent->x + (ent->width / 2)) - (TILE_SIZE * ent->gridX) + 0.0002f);
+		ent->x += (((TILE_SIZE * ent->gridX) + TILE_SIZE) - (ent->x - ent->width / 2) - 0.0002f);
 		ent->acceleration_x = 0;
 		ent->velocity_x = 0;
 	}
 
 	//check if lower-left corner is colliding with a solid block
-	worldToTileCoordinates(right, lower, &ent->gridX, &ent->gridY);
+	worldToTileCoordinates(left, lower, &ent->gridX, &ent->gridY);
 	if (solidTiles[ent->gridY][ent->gridX] == true){
-		ent->x += ((ent->x + (ent->width / 2)) - (TILE_SIZE * ent->gridX) + 0.0002f);
+		ent->x += (((TILE_SIZE * ent->gridX) + TILE_SIZE) - (ent->x - ent->width / 2) - 0.0002f);
 		ent->acceleration_x = 0;
 		ent->velocity_x = 0;
 	}
 
-	return false;
 }
 
 
@@ -780,10 +787,10 @@ int main(int argc, char *argv[])
 
 	GLuint menuArtTexture = LoadTexture("AstronautMenu.png");
 	SheetSprite menuArt(menuArtTexture, 0.0f, 0.0f, 1.0f, 1.0f, 2.8f);
-	GLuint playerTexture = LoadTexture("characters_3.png");
+	GLuint playerTexture = LoadTexture("Astronaut Sprite 4.png");
 	//SheetSprite playerSprite(playerTexture, 0.0f/256.0f, 64.0f/128.0f, 32.0f / 256.0f, 32.0f / 128.0f, 0.8f);
 	//playerEnt player(playerTexture, 32.0f/250.0f, 63.0f, 128.0f,  0.5f, -3.55f);  //subtract -0.6f from width and -0.2f from height
-	playerEnt player(playerTexture, 0.0f/256.0f, 0.0f/128.0f, 32.0f/256.0f, 32.0f/128.0f, 0.8f, 8, 3, 0.5f, -3.55f);
+	playerEnt player(playerTexture, 0.0f/256.0f, 0.0f/128.0f, 1.0f, 1.0f, 0.8f, 1, 0, 0.5f, -3.55f);
 	
 	std::vector<enemyEnt> enemies;
 		enemies.push_back(enemyEnt(playerTexture, 0.0f / 256.0f, 0.0f / 128.0f, 32.0f / 256.0f, 32.0f / 128.0f, 0.8f, 8, 3, 0.5f, -2.55f));
@@ -832,8 +839,8 @@ int main(int argc, char *argv[])
 	Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 4096);   //created audio buffer and sets a frequency and 2 channels for sound
 	walkSound = Mix_LoadWAV("walking3.wav");        //loads sounds
 //	jumpSound = Mix_LoadWAV("jump.wav");	  //loads sounds
-//	music = Mix_LoadMUS("backgroundMusic.mp3");		  //loads music
-//	Mix_PlayMusic(music, -1);				  //plays music file on infinite loop (-1)
+	music = Mix_LoadMUS("backgroundMusic.mp3");		  //loads music
+	Mix_PlayMusic(music, -1);				  //plays music file on infinite loop (-1)
 
 
 	string line;
@@ -1048,8 +1055,8 @@ int main(int argc, char *argv[])
 			//playerModelMatrix.Scale(0.7f, 1.0f, 1.0f);
 			//program.setModelMatrix(playerModelMatrix);
 			modelMatrix.identity();
-			modelMatrix.Translate(5.2f, -2.3f, 0.0f);
-			modelMatrix.Scale(1.0f, 1.2f, 1.0f);
+			modelMatrix.Translate(5.0f, -2.3f, 0.0f);
+			modelMatrix.Scale(0.8f, 1.2f, 1.0f);
 			program.setModelMatrix(modelMatrix);
 			menuArt.Draw(&program);
 		}
