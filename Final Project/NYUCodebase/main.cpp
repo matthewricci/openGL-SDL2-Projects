@@ -2,10 +2,13 @@
 NAME: Matthew Ricci
 Assignment: CS3113 Final Project
 NOTES:
-use a library/linked list/something else to make a dialogue tree and store each dialogue's starting x position
 
 Press space to start. Dungeon-crawler themed game with a turn-based battle fighting mode. Press ESC key to quit the game.
+
+problems:
 I have multiple levels drawn and in the repo, but I did not have time to implement them.
+The battle mode unfortunately is missing animations, which was in the original plan.
+Tile collision is a little buggy still.
 
 */
 
@@ -726,7 +729,7 @@ void drawTextBox(ShaderProgram *program, GLuint textBoxTexture, GLuint fontTextu
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	
 	fontModelMatrix.identity();
-	fontModelMatrix.Translate(x-2.5f, y-1.4f, 0.0f);
+	fontModelMatrix.Translate(x-1.5f, y-1.4f, 0.0f);
 	drawText(program, fontTexture, text, size, spacing, &fontModelMatrix);
 
 	//regardless of the above text, this will always draw the hint string near the bottom-middle of the text box
@@ -738,7 +741,7 @@ void drawTextBox(ShaderProgram *program, GLuint textBoxTexture, GLuint fontTextu
 
 //used to apply damage to an enemy entity during battle mode
 void doDamageToEnemy(enemyEnt &enemy, int playerChoice, float &elapsed ){
-	if (enemy.alive && elapsed > 1.0f){
+	if (enemy.alive && elapsed > 0.5f){
 		if (playerChoice == 1){
 			enemy.health -= 5;
 		}
@@ -781,7 +784,7 @@ void Update(float timeElapsed, float moveElapsed, const Uint8 *keys, playerEnt *
 		if (turn == PLAYER){
 			if (keys != NULL && keys[SDL_SCANCODE_A]){
 				doDamageToEnemy(enemies[battleEnemy], 1, moveElapsed);
-				if (enemies[battleEnemy].health < 0){
+				if (enemies[battleEnemy].health <= 0){
 					state = stateHolder;
 				}
 				turn == ENEMY;
@@ -895,6 +898,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	//screenshake bool
+	bool shakescreen;
 
 
 
@@ -932,6 +937,7 @@ int main(int argc, char *argv[])
 	string third_line = "Character illustration by Julia Hemsworth.";
 	string fourth_line = "Music composed by Ryan Hemsworth.";
 	string pressSpace = "Press space to start!";
+	string choices = "Choose your attack! 1: punch   2: Stomp";
 
 
 	unsigned char levelData[LEVEL_HEIGHT][LEVEL_WIDTH];
@@ -971,7 +977,7 @@ int main(int argc, char *argv[])
 					if (val > 0) {
 						// be careful, the tiles in this format are indexed from 1 not 0
 						levelData[y][x] = val - 1;
-						if (val == 1 || val == 118 || val == 4 || val == 15 || val == 16 || val == 18 || val == 33 || val == 34 || val == 47 || val == 48)
+						if (val == 1 || val == 118 || val == 3 || val == 14 || val == 15 || val == 17 || val == 32 || val == 33 || val == 46 || val == 47)
 							solidTiles[y][x] = true;
 						if (val == 118)
 							winnerTiles[y][x] = true;
@@ -1042,6 +1048,10 @@ int main(int argc, char *argv[])
 				if (event.key.keysym.scancode == SDL_SCANCODE_Q){
 					state = LEVEL_ONE;
 					enemies[battleEnemy].alive = false;
+					enemies[battleEnemy].basePositionX = enemies[battleEnemy].x;
+					enemies[battleEnemy].basePositionY = enemies[battleEnemy].y;
+
+
 					}
 			}
 			if (event.type == SDL_KEYDOWN){
@@ -1102,7 +1112,7 @@ int main(int argc, char *argv[])
 			Update(elapsed, moveElapsed, keys, &player, enemies, solidTiles);
 			playerModelMatrix.identity();
 			playerModelMatrix.Translate(player.x, player.y, 0.0f);
-			playerModelMatrix.Scale(1.5f, 1.0f, 1.0f);				//remember to change this if you change sprites!!
+			playerModelMatrix.Scale(2.4f, 1.0f, 1.0f);				//remember to change this if you change sprites!!
 
 			program.setModelMatrix(playerModelMatrix);
 			player.Draw(&program, player.direction);
@@ -1129,7 +1139,7 @@ int main(int argc, char *argv[])
 				}
 			}
 
-			if (player.x > 5.3f && player.y > -2.85f){
+			if (player.x > 5.8f && player.y > -2.75f){
 				state = GAME_OVER;
 			}
 
@@ -1157,8 +1167,13 @@ int main(int argc, char *argv[])
 
 		}
 		else if (state == BATTLE){
+
 			Update(elapsed, moveElapsed, keys, &player, enemies, solidTiles, turn);
 			viewMatrix.identity();
+			if (shakescreen = true && moveElapsed < 0.8f){
+				viewMatrix.Translate(sin(ticks*20.0f)/30, sin(ticks* 20.0f)/10, 0.0f);
+				program.setViewMatrix(viewMatrix);
+			}
 			program.setViewMatrix(viewMatrix);
 			//modelMatrix.identity();
 			//program.setModelMatrix(modelMatrix);
@@ -1188,24 +1203,29 @@ int main(int argc, char *argv[])
 			program.setModelMatrix(fontModelMatrix);
 			drawText(&program, font, std::to_string(player.health), 0.13f, 0.0f, &fontModelMatrix);
 
+
+			drawTextBox(&program, textBoxTexture, font, boxModelMatrix, fontModelMatrix, choices, 0.1f, 0.0f, player.battleX, player.battleY );
+
 			if (turn == PLAYER){
 				if (keys != NULL && keys[SDL_SCANCODE_1]){
 					doDamageToEnemy(enemies[battleEnemy], 1, moveElapsed);
-					if (enemies[battleEnemy].health < 0){
+					if (enemies[battleEnemy].health <= 0){
 						state = stateHolder;
 						enemies[battleEnemy].alive = 0;
 						moveElapsed = 0.0f;
 					}
 					turn == ENEMY;
+					shakescreen = true;
 				}
 				else if (keys != NULL && keys[SDL_SCANCODE_2]){
 					doDamageToEnemy(enemies[battleEnemy], 2, moveElapsed);
-					if (enemies[battleEnemy].health < 0){
+					if (enemies[battleEnemy].health <= 0){
 						state = stateHolder;
 						enemies[battleEnemy].alive = 0;
 						moveElapsed = 0.0f;
 					}
 					turn == ENEMY;
+					shakescreen = true;
 				}
 			}
 			else if (turn == ENEMY){
@@ -1214,15 +1234,16 @@ int main(int argc, char *argv[])
 				if (player.health < 1){
 					state = START_SCREEN;
 				}
-
+				shakescreen = true;
 			}
+
 		}
 		else if (state == GAME_OVER){
 			string gameover = "Game over! Thanks for playing Crash Landing.";
 			fontModelMatrix.identity();
 			fontModelMatrix.Translate(player.x-2.3f, player.y, 0.0f);
 			program.setModelMatrix(fontModelMatrix);
-			drawText(&program, font, gameover, 0.16f, 0.0f, &fontModelMatrix);
+			drawText(&program, font, gameover, 0.1f, 0.0f, &fontModelMatrix);
 		}
 		else{
 			modelMatrix.identity();
