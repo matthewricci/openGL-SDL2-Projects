@@ -4,6 +4,9 @@ Assignment: CS3113 Final Project
 NOTES:
 use a library/linked list/something else to make a dialogue tree and store each dialogue's starting x position
 
+Press space to start. Dungeon-crawler themed game with a turn-based battle fighting mode. Press ESC key to quit the game.
+I have multiple levels drawn and in the repo, but I did not have time to implement them.
+
 */
 
 #ifdef _WINDOWS
@@ -29,8 +32,8 @@ using namespace std;
 #define RESOURCE_FOLDER "NYUCodebase.app/Contents/Resources/"
 #endif
 
-#define LEVEL_HEIGHT 20     //number of rows of tiles (y value)
-#define LEVEL_WIDTH 25     //number of columns of tiles (x value)
+#define LEVEL_HEIGHT 50     //number of rows of tiles (y value)
+#define LEVEL_WIDTH 50     //number of columns of tiles (x value)
 #define SPRITE_COUNT_X 14   //number of columns in the tilesheet
 #define SPRITE_COUNT_Y 16    //number of rows in the tilesheet
 #define TILE_SIZE 0.2
@@ -43,11 +46,13 @@ using namespace std;
 
 SDL_Window* displayWindow;
 
-enum GameState { START_SCREEN, LEVEL_ONE, LEVEL_TWO, BATTLE };   //different states the game can be in
+enum GameState { START_SCREEN, LEVEL_ONE, LEVEL_TWO, LEVEL_THREE, BATTLE, GAME_OVER };   //different states the game can be in
 enum SpriteDirection { LEFT, RIGHT };							 //different directions the sprites can be looking
 enum AIState {STANDBY, PURSUE, RETURN};
+enum Turn {PLAYER, ENEMY};
 
 int state; //global var for the current game state the loop is in
+int stateHolder = LEVEL_ONE;
 
 //global vars containing sounds used in-game, they are global vars so that class functions (e.g., Update) can access and play them
 Mix_Chunk *walkSound;
@@ -239,7 +244,7 @@ public:
 	bool collidedLeft;
 	bool collidedRight;
 	bool jumping;      //used to test if player is currently jumping
-
+	
 	int gridX, gridY;
 
 	int spriteIndex = 0;  //keeps track of what index of the sprites vector to draw
@@ -269,13 +274,23 @@ public:
 	SpriteDirection direction = RIGHT;
 	int health = 100;
 	int armor = 50;
+	int bullets = 10;
+
+	std::string move1 = "punch";
+	int move1Damage = 5;
+	std::string move2 = "shoot";
+	int move2Damage = 15;
+
+	//coords for the battle mode
+	float battleX = -1.5f;
+	float battleY = 0.0f;
 
 };
 
 class enemyEnt : public Entity{
 public:
-	enemyEnt(GLuint iSpriteTexture, float iU, float iV, float iWidth, float iHeight, float iSize, int numSprites = 1, int row = 0, float iX = 0.0f, float iY = 0.0f, float iVisionDistance = 1.35f) : 
-	Entity(iSpriteTexture, iU, iV, iWidth, iHeight, iSize, numSprites, row, iX, iY), basePositionX(iX), basePositionY(iY), visionDistance(iVisionDistance){}
+	enemyEnt(GLuint iSpriteTexture, float iU, float iV, float iWidth, float iHeight, float iSize, GameState level, int numSprites = 1, int row = 0, float iX = 0.0f, float iY = 0.0f, float iVisionDistance = 1.25f) : 
+	Entity(iSpriteTexture, iU, iV, iWidth, iHeight, iSize, numSprites, row, iX, iY), basePositionX(iX), basePositionY(iY), visionDistance(iVisionDistance), level(level){}
 
 	bool proximityTest(float otherEntX, float otherEntY){
 		//using Pythagorean theorem to define a ray test between this entity and another entity
@@ -292,9 +307,18 @@ public:
 	float basePositionX;
 	float basePositionY;
 	float visionDistance;
-	int health = 50;
+	int health = 20;
 	AIState currentState = STANDBY;
 	bool alive = true;
+	std::string move1 = "lash";
+	int move1Damage = 3;
+	std::string move2 = "grapple";
+	int move2Damage = 5;
+
+	//coords for the battle mode
+	float battleX = 1.5f;
+	float battleY = 0.0f;
+	GameState level;
 
 };
 
@@ -348,10 +372,10 @@ bool detectCollisionTwoEntities(const Entity *a, const Entity *b){
 		return true;
 }
 
-void fixEntityCollision(Entity *a, Entity *b){
-	//if a's bottom is lower than b's top AND a's top is higher than b's top, we need to move a's Y up and b's Y down
-
-}
+//void fixEntityCollision(Entity *a, Entity *b){
+//	//if a's bottom is lower than b's top AND a's top is higher than b's top, we need to move a's Y up and b's Y down
+//
+//}
 
 //bool newDetectCollisionTwoEntities(float timeElapsed, Entity *a, Entity *b){
 //	// if a's top if higher than b's bottom, possible collision
@@ -561,10 +585,10 @@ void enemyEnt::Update(float timeElapsed, float playerX, float playerY, const boo
 		currentState = PURSUE;
 	}
 	else if (!isInRange){
-		if (currentState != STANDBY && abs(x - basePositionX) < 0.05f && abs(y - basePositionY) < 0.05f){
+		if (currentState != STANDBY && alive && abs(x - basePositionX) < 0.05f && abs(y - basePositionY) < 0.05f){
 			currentState = STANDBY;
 		}
-		else if (currentState != RETURN && abs(x - basePositionX) > 0.05f || abs(y - basePositionY) > 0.05f){
+		else if (currentState != RETURN && alive && abs(x - basePositionX) > 0.05f || abs(y - basePositionY) > 0.05f){
 			currentState = RETURN;
 		}
 	}
@@ -589,6 +613,14 @@ void enemyEnt::Update(float timeElapsed, float playerX, float playerY, const boo
 		}
 		else direction = RIGHT;
 
+		timeSinceLastSprite += timeElapsed;
+		if (timeSinceLastSprite > 0.1f){
+			timeSinceLastSprite = 0.0f;
+			spriteIndex++;
+			if (spriteIndex >= numSprites)  //if the sprite index is greater than the total number of sprites
+				spriteIndex %= numSprites;  //set it back to 0 using modulo
+		}
+
 	}
 	else if ( currentState == RETURN){
 		//y-axis first
@@ -608,6 +640,14 @@ void enemyEnt::Update(float timeElapsed, float playerX, float playerY, const boo
 			direction = LEFT;
 		}
 		else direction = RIGHT;
+
+		timeSinceLastSprite += timeElapsed;
+		if (timeSinceLastSprite > 0.1f){
+			timeSinceLastSprite = 0.0f;
+			spriteIndex++;
+			if (spriteIndex >= numSprites)  //if the sprite index is greater than the total number of sprites
+				spriteIndex %= numSprites;  //set it back to 0 using modulo
+		}
 
 	}
 	else{  //currentState must be STANDBY
@@ -696,29 +736,68 @@ void drawTextBox(ShaderProgram *program, GLuint textBoxTexture, GLuint fontTextu
 	drawText(program, fontTexture, hint, 0.1, spacing, &fontModelMatrix);
 }
 
-//updates the entire gamestate for all entities
-void Update(float timeElapsed, const Uint8 *keys, playerEnt *player, std::vector<enemyEnt> enemies, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH]){
-	float fixedElapsed = timeElapsed;
-	if (fixedElapsed > FIXED_TIMESTEP * MAX_TIMESTEPS) {
-		fixedElapsed = FIXED_TIMESTEP * MAX_TIMESTEPS;
+//used to apply damage to an enemy entity during battle mode
+void doDamageToEnemy(enemyEnt &enemy, int playerChoice, float &elapsed ){
+	if (enemy.alive && elapsed > 1.0f){
+		if (playerChoice == 1){
+			enemy.health -= 5;
+		}
+		else if (playerChoice == 2){
+			enemy.health -= 15;
+		}
 	}
-	while (fixedElapsed >= FIXED_TIMESTEP) {
-		fixedElapsed -= FIXED_TIMESTEP;
-		player->Update(FIXED_TIMESTEP, keys, solidTiles);
+	elapsed = 0.0f;
+}
+
+//updates the entire gamestate for all entities
+void Update(float timeElapsed, float moveElapsed, const Uint8 *keys, playerEnt *player, std::vector<enemyEnt> enemies, const bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH], const Turn turn=PLAYER){
+	if (state != BATTLE){
+		float fixedElapsed = timeElapsed;
+		if (fixedElapsed > FIXED_TIMESTEP * MAX_TIMESTEPS) {
+			fixedElapsed = FIXED_TIMESTEP * MAX_TIMESTEPS;
+		}
+		while (fixedElapsed >= FIXED_TIMESTEP) {
+			fixedElapsed -= FIXED_TIMESTEP;
+			player->Update(FIXED_TIMESTEP, keys, solidTiles);
+			for (size_t i = 0; i < enemies.size(); i++){
+				if (enemies[i].alive){
+					enemies[i].Update(FIXED_TIMESTEP, player->x, player->y, solidTiles);
+				}
+			}
+		}
+		player->Update(fixedElapsed, keys, solidTiles);
 		for (size_t i = 0; i < enemies.size(); i++){
 			if (enemies[i].alive){
-				enemies[i].Update(FIXED_TIMESTEP, player->x, player->y, solidTiles);
+				enemies[i].Update(fixedElapsed, player->x, player->y, solidTiles);
+				if (state != BATTLE && enemies[i].alive && detectCollisionTwoEntities(player, &enemies[i])){
+					battleEnemy = i;
+					state = BATTLE;
+				}
 			}
 		}
 	}
-	player->Update(fixedElapsed, keys, solidTiles);
-	for (size_t i = 0; i < enemies.size(); i++){
-		if (enemies[i].alive){
-			enemies[i].Update(fixedElapsed, player->x, player->y, solidTiles);
-			if (state != BATTLE && enemies[i].alive && detectCollisionTwoEntities(player, &enemies[i])){
-				battleEnemy = i;
-				state = BATTLE;
+	else if (state == BATTLE){
+		enemies[battleEnemy].battleX += 2.5f;
+		if (turn == PLAYER){
+			if (keys != NULL && keys[SDL_SCANCODE_A]){
+				doDamageToEnemy(enemies[battleEnemy], 1, moveElapsed);
+				if (enemies[battleEnemy].health < 0){
+					state = stateHolder;
+				}
+				turn == ENEMY;
 			}
+			else if (keys != NULL && keys[SDL_SCANCODE_B]){
+				doDamageToEnemy(enemies[battleEnemy], 2, moveElapsed);
+				turn == ENEMY;
+			}
+		}
+		else if (turn == ENEMY){
+			int damage = rand() % 5;
+			player->health -= damage;
+			if (player->health < 1){
+				state = START_SCREEN;
+			}
+
 		}
 	}
 }
@@ -745,6 +824,7 @@ void drawBackground(ShaderProgram *program, GLuint background, Matrix &modelMatr
 	program->setModelMatrix(modelMatrix);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -782,19 +862,41 @@ int main(int argc, char *argv[])
 	float vm_x = -3.55f;
 	float vm_y = 2.3f;
 
+	//set to true once if we switch into level 2 or level 3
+	bool levelTwoFlag = false;
+	bool levelThreeFlag = false;
+
 	//array holding data on solid tile blocks, check against them to see if collision is present
 	bool solidTiles[LEVEL_HEIGHT][LEVEL_WIDTH];
 
+	bool winnerTiles[LEVEL_HEIGHT][LEVEL_WIDTH];
+
 	GLuint menuArtTexture = LoadTexture("AstronautMenu.png");
 	SheetSprite menuArt(menuArtTexture, 0.0f, 0.0f, 1.0f, 1.0f, 2.8f);
-	GLuint playerTexture = LoadTexture("Astronaut Sprite 4.png");
+	GLuint playerTexture = LoadTexture("playerSprites.png");
+	GLuint handEnemyTexture = LoadTexture("handEnemySprites.png");
+	GLuint moundTexture = LoadTexture("moundSprites.png");
 	//SheetSprite playerSprite(playerTexture, 0.0f/256.0f, 64.0f/128.0f, 32.0f / 256.0f, 32.0f / 128.0f, 0.8f);
 	//playerEnt player(playerTexture, 32.0f/250.0f, 63.0f, 128.0f,  0.5f, -3.55f);  //subtract -0.6f from width and -0.2f from height
-	playerEnt player(playerTexture, 0.0f/256.0f, 0.0f/128.0f, 1.0f, 1.0f, 0.8f, 1, 0, 0.5f, -3.55f);
+	playerEnt player(playerTexture, 0.0f/256.0f, 0.0f/128.0f, 37.0f/162.0f, 47.0f/53.0f, 0.8f, 4, 1, 1.5f, -5.75f);
 	
 	std::vector<enemyEnt> enemies;
-		enemies.push_back(enemyEnt(playerTexture, 0.0f / 256.0f, 0.0f / 128.0f, 32.0f / 256.0f, 32.0f / 128.0f, 0.8f, 8, 3, 0.5f, -2.55f));
-		enemies.push_back(enemyEnt(playerTexture, 0.0f / 256.0f, 0.0f / 128.0f, 32.0f / 256.0f, 32.0f / 128.0f, 0.8f, 8, 3, 1.5f, -1.55f));
+	enemies.push_back(enemyEnt(handEnemyTexture, 0.0f / 256.0f, 0.0f / 128.0f, 40.0f / 128.0f, 60.0f / 64.0, 0.8f, LEVEL_ONE, 3, 1, 1.7f, -4.00f));
+	enemies.push_back(enemyEnt(handEnemyTexture, 0.0f / 256.0f, 0.0f / 128.0f, 40.0f / 128.0f, 60.0f / 64.0f, 0.8f, LEVEL_ONE, 3, 1, 3.5f, -5.55f));
+
+	enemies.push_back(enemyEnt(moundTexture, 0.0f / 256.0f, 0.0f / 128.0f, 24.0f / 75.0f, 12.0f / 32.0f, 0.3f, LEVEL_ONE, 3, 1, 4.5f, -4.50f));
+	enemies.push_back(enemyEnt(moundTexture, 0.0f / 256.0f, 0.0f / 128.0f, 24.0f / 75.0f, 12.0f / 32.0f, 0.3f, LEVEL_TWO, 3, 1, 1.5f, -2.55f));
+	enemies.push_back(enemyEnt(handEnemyTexture, 0.0f / 256.0f, 0.0f / 128.0f, 24.0f / 75.0f, 12.0f / 32.0f, 0.8f, LEVEL_THREE, 3, 1, 1.5f, -2.55f));
+	enemies.push_back(enemyEnt(moundTexture, 0.0f / 256.0f, 0.0f / 128.0f, 24.0f / 75.0f, 12.0f / 32.0f, 0.3f, LEVEL_THREE, 3, 1, 1.5f, -2.55f));
+
+	for (size_t i = 0; i < enemies.size(); i++){
+		if (enemies[i].level != LEVEL_ONE){
+			enemies[i].alive = false;
+		}
+	}
+
+
+
 
 	//DELETE?
 	SheetSprite keySprite(tilesheet, 6.0f*16.0f / 256.0f, 5.0f*16.0f / 128.0f, 16.0f / 256.0f, 16.0f / 128.0f, 0.4f);
@@ -817,17 +919,23 @@ int main(int argc, char *argv[])
 	int numChars = 0;
 	float textElapsed;
 
-	//strings to write
-	string first_line = "Title card! This is a menu.";
-	string second_line = "press Q with the key to pass through the gate.";
+	//for choosing turns in battle mode
+	Turn turn = PLAYER;
 
-	//determining if player has collected key and hit 'Q' to open the gate
-	bool gateOpened = false;
-	int numTiles = 4;  //4 tiles need to be erased, one at a time, one every quarter of a second, and this helps keep count of when each is erased
+	//for keeping track of how long it's been between moves in battle mode
+	float moveElapsed = 0.0f;
+	
+
+	//strings to write
+	string first_line = "CRASH LANDING";
+	string second_line = "CS3113 - Programmed by Matthew Ricci.";
+	string third_line = "Character illustration by Julia Hemsworth.";
+	string fourth_line = "Music composed by Ryan Hemsworth.";
+	string pressSpace = "Press space to start!";
 
 
 	unsigned char levelData[LEVEL_HEIGHT][LEVEL_WIDTH];
-	ifstream stream("gauntletTest.txt");
+	ifstream stream("level2.txt");
 
 	//initializes the ViewMatrix at the start of the game
 	viewMatrix.identity();
@@ -863,8 +971,10 @@ int main(int argc, char *argv[])
 					if (val > 0) {
 						// be careful, the tiles in this format are indexed from 1 not 0
 						levelData[y][x] = val - 1;
-						if (val == 1)
+						if (val == 1 || val == 118 || val == 4 || val == 15 || val == 16 || val == 18 || val == 33 || val == 34 || val == 47 || val == 48)
 							solidTiles[y][x] = true;
+						if (val == 118)
+							winnerTiles[y][x] = true;
 					}
 					else {
 						levelData[y][x] = 0;
@@ -881,7 +991,6 @@ int main(int argc, char *argv[])
 	for (int y = 0; y < LEVEL_HEIGHT; y++){
 		for (int x = 0; x < LEVEL_WIDTH; x++){
 
-			if (levelData[y][x] > 0){
 				float u = (float)(((int)levelData[y][x]) % SPRITE_COUNT_X) / (float)SPRITE_COUNT_X;
 				float v = (float)(((int)levelData[y][x]) / SPRITE_COUNT_X) / (float)SPRITE_COUNT_Y;
 
@@ -908,7 +1017,7 @@ int main(int argc, char *argv[])
 					u + spriteWidth, v + (spriteHeight),
 					u + spriteWidth, v
 				});
-			}
+			
 		}
 	}
 
@@ -935,19 +1044,22 @@ int main(int argc, char *argv[])
 					enemies[battleEnemy].alive = false;
 					}
 			}
-//			else if (event.type == SDL_KEYDOWN){
-				//if (event.key.keysym.scancode == SDL_SCANCODE_UP){
-				//	player.y += 100.0f;
-				//}
-				//else if (event.key.keysym.scancode == SDL_SCANCODE_DOWN){
-				//	player.velocity_y -= 100.0f;
-				//}
-//			}
+			if (event.type == SDL_KEYDOWN){
+				if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE){
+					Mix_FreeChunk(walkSound);
+					Mix_FreeChunk(jumpSound);
+					Mix_FreeMusic(music);
+					SDL_Quit();
+					return 0;
+				}
+
+			}
 		}
 
 		const Uint8 *keys = SDL_GetKeyboardState(NULL);
 
 		glClear(GL_COLOR_BUFFER_BIT);
+		moveElapsed += elapsed;
 
 		//setting up matrixes
 		program.setModelMatrix(modelMatrix);
@@ -987,32 +1099,38 @@ int main(int argc, char *argv[])
 			//	player.ResetPlayer(&viewMatrix, vm_x, vm_y);
 
 			//updates the gamestate using the overarching Update() function and then draws the player based on these updates
-			Update(elapsed, keys, &player, enemies, solidTiles);
+			Update(elapsed, moveElapsed, keys, &player, enemies, solidTiles);
 			playerModelMatrix.identity();
 			playerModelMatrix.Translate(player.x, player.y, 0.0f);
-			//playerModelMatrix.Scale(1.5f, 1.0f, 1.0f);				//remember to change this if you change sprites!!
+			playerModelMatrix.Scale(1.5f, 1.0f, 1.0f);				//remember to change this if you change sprites!!
 
 			program.setModelMatrix(playerModelMatrix);
-
 			player.Draw(&program, player.direction);
 
+
 			for (size_t i = 0; i < enemies.size(); i++){
-				if (enemies[i].currentState != PURSUE && enemies[i].alive && enemies[i].proximityTest(player.x, player.y)){
-					enemies[i].currentState = PURSUE;
+				if (enemies[i].level == LEVEL_ONE){
+					if (enemies[i].currentState != PURSUE && enemies[i].alive && enemies[i].proximityTest(player.x, player.y)){
+						enemies[i].currentState = PURSUE;
+					}
+					else if (!enemies[i].alive){
+						enemies[i].currentState = STANDBY;
+					}
+					enemies[i].Update(elapsed, player.x, player.y, solidTiles);
+					enemyModelMatrix.identity();
+					enemyModelMatrix.Translate(enemies[i].x, enemies[i].y, 0.0f);
+					enemyModelMatrix.Scale(1.5f, 1.0f, 1.0f);
+					program.setModelMatrix(enemyModelMatrix);
+					enemies[i].Draw(&program, enemies[i].direction);
+					//fontModelMatrix.identity();
+					//fontModelMatrix.Translate(enemies[i].x - 0.08f, enemies[i].y + 0.3f, 0.0f);
+					//program.setModelMatrix(fontModelMatrix);
+					//drawText(&program, font, std::to_string(enemies[i].health), 0.13f, 0.0f, &fontModelMatrix);
 				}
-				else if (!enemies[i].alive){
-					enemies[i].currentState = STANDBY;
-				}
-				enemies[i].Update(elapsed, player.x, player.y, solidTiles);
-				enemyModelMatrix.identity();
-				enemyModelMatrix.Translate(enemies[i].x, enemies[i].y, 0.0f);
-				enemyModelMatrix.Scale(1.5f, 1.0f, 1.0f);
-				program.setModelMatrix(enemyModelMatrix);
-				enemies[i].Draw(&program, enemies[i].direction);
-				fontModelMatrix.identity();
-				fontModelMatrix.Translate(enemies[i].x - 0.08f, enemies[i].y + 0.3f, 0.0f);
-				program.setModelMatrix(fontModelMatrix);
-				drawText(&program, font, std::to_string(enemies[i].health), 0.13f, 0.0f, &fontModelMatrix);
+			}
+
+			if (player.x > 5.3f && player.y > -2.85f){
+				state = GAME_OVER;
 			}
 
 
@@ -1023,13 +1141,88 @@ int main(int argc, char *argv[])
 			//	player.spriteIndex %= player.numSprites;  //set it back to 0 using modulo
 
 
-			drawTextBox(&program, textBoxTexture, font, boxModelMatrix, fontModelMatrix, first_line, 0.15, 0.0, player.x, player.y);
 
 
 		}
+		else if (levelTwoFlag && state == LEVEL_TWO){
+			levelTwoFlag = false;
+			for (size_t i = 0; i < enemies.size(); i++){
+				if (enemies[i].level == LEVEL_TWO){
+					enemies[i].alive = true;
+				}
+				else{
+					enemies[i].alive = false;
+				}
+			}
+
+		}
 		else if (state == BATTLE){
-			drawBackground(&program, battleBackground, modelMatrix, player.x, player.y);
-			//battleEnemy->Draw(&program, RIGHT);
+			Update(elapsed, moveElapsed, keys, &player, enemies, solidTiles, turn);
+			viewMatrix.identity();
+			program.setViewMatrix(viewMatrix);
+			//modelMatrix.identity();
+			//program.setModelMatrix(modelMatrix);
+			drawBackground(&program, battleBackground, modelMatrix, 0.0f, 0.0f);
+
+			//draw player
+			playerModelMatrix.identity();
+			playerModelMatrix.Translate(player.battleX, player.battleY, 0.0f);
+			playerModelMatrix.Scale(3.0f, 2.0f, 1.0f);
+			program.setModelMatrix(playerModelMatrix);
+			player.Draw(&program, RIGHT);
+
+			//draw enemy
+			enemyModelMatrix.identity();
+			enemyModelMatrix.Translate(enemies[battleEnemy].battleX, enemies[battleEnemy].battleY, 0.0f);
+			enemyModelMatrix.Scale(2.0f, 2.0f, 1.0f);
+			program.setModelMatrix(enemyModelMatrix);
+			enemies[battleEnemy].Draw(&program, RIGHT);
+
+			//draw health
+			fontModelMatrix.identity();
+			fontModelMatrix.Translate(enemies[battleEnemy].battleX, enemies[battleEnemy].battleY + 1.0f, 0.0f);
+			program.setModelMatrix(fontModelMatrix);
+			drawText(&program, font, std::to_string(enemies[battleEnemy].health), 0.13f, 0.0f, &fontModelMatrix);
+			fontModelMatrix.identity();
+			fontModelMatrix.Translate(player.battleX - 0.25f, player.battleY + 1.0f, 0.0f);
+			program.setModelMatrix(fontModelMatrix);
+			drawText(&program, font, std::to_string(player.health), 0.13f, 0.0f, &fontModelMatrix);
+
+			if (turn == PLAYER){
+				if (keys != NULL && keys[SDL_SCANCODE_1]){
+					doDamageToEnemy(enemies[battleEnemy], 1, moveElapsed);
+					if (enemies[battleEnemy].health < 0){
+						state = stateHolder;
+						enemies[battleEnemy].alive = 0;
+						moveElapsed = 0.0f;
+					}
+					turn == ENEMY;
+				}
+				else if (keys != NULL && keys[SDL_SCANCODE_2]){
+					doDamageToEnemy(enemies[battleEnemy], 2, moveElapsed);
+					if (enemies[battleEnemy].health < 0){
+						state = stateHolder;
+						enemies[battleEnemy].alive = 0;
+						moveElapsed = 0.0f;
+					}
+					turn == ENEMY;
+				}
+			}
+			else if (turn == ENEMY){
+				int damage = 3;
+				player.health = damage;
+				if (player.health < 1){
+					state = START_SCREEN;
+				}
+
+			}
+		}
+		else if (state == GAME_OVER){
+			string gameover = "Game over! Thanks for playing Crash Landing.";
+			fontModelMatrix.identity();
+			fontModelMatrix.Translate(player.x-2.3f, player.y, 0.0f);
+			program.setModelMatrix(fontModelMatrix);
+			drawText(&program, font, gameover, 0.16f, 0.0f, &fontModelMatrix);
 		}
 		else{
 			modelMatrix.identity();
@@ -1046,11 +1239,25 @@ int main(int argc, char *argv[])
 			glDrawArrays(GL_TRIANGLES, 0, 6);
 
 			fontModelMatrix.identity();
-			fontModelMatrix.Translate(0.4f, -1.75f, 0.0f);
+			fontModelMatrix.Translate(0.2f, -1.35f, 0.0f);
 			glBindTexture(GL_TEXTURE_2D, textBoxTexture);
 			program.setModelMatrix(fontModelMatrix);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
-			drawText(&program, font, first_line, 0.1f, 0.0f, &fontModelMatrix);
+			drawText(&program, font, first_line, 0.2f, 0.0f, &fontModelMatrix);
+			fontModelMatrix.Translate(0.0f, -0.5f, 0.0f);
+			program.setModelMatrix(fontModelMatrix);
+			drawText(&program, font, second_line, 0.1f, 0.0f, &fontModelMatrix);
+			fontModelMatrix.Translate(0.0f, -0.4f, 0.0f);
+			program.setModelMatrix(fontModelMatrix);
+			drawText(&program, font, third_line, 0.1f, 0.0f, &fontModelMatrix);
+			fontModelMatrix.Translate(0.0f, -0.4f, 0.0f);
+			program.setModelMatrix(fontModelMatrix);
+			drawText(&program, font, fourth_line, 0.1f, 0.0f, &fontModelMatrix);
+			fontModelMatrix.Translate(0.4f, -0.4f, 0.0f);
+			fontModelMatrix.Translate(0.0f, sin(ticks * 4.6f)/20.0f, 0.0f);
+			program.setModelMatrix(fontModelMatrix);
+			drawText(&program, font, pressSpace, 0.1f, 0.0f, &fontModelMatrix);
+
 			//playerModelMatrix.identity();
 			//playerModelMatrix.Scale(0.7f, 1.0f, 1.0f);
 			//program.setModelMatrix(playerModelMatrix);
